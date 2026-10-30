@@ -43,7 +43,7 @@
 
     <main id="top">
       <section class="hero">
-        <h1 class="hero-title">You can't prompt <span class="line">what you <span class="mark">don't know.</span></span></h1>
+        <h1 class="hero-title">You can’t prompt <span class="line">what you <span class="mark">don’t know.</span></span></h1>
         <div class="hero-copy">
           <p class="lede">Tailor learns how you work, notices what slows you down, and builds the apps you never thought to ask for.</p>
           <div class="cta-row">
@@ -60,30 +60,31 @@
               <b class="on">Ideas</b><b>Goals</b><b>Building</b><b>My apps</b><b>Learning</b>
             </div>
             <div class="app-main">
-              <strong class="app-title">Ideas for you</strong>
-              <div class="app-ask"><span class="typed">Plan my week</span><em>Get ideas</em></div>
+              <div class="app-head"><strong class="app-title">Ideas for you</strong><span class="learning"><i></i>Learning</span></div>
+              <span class="app-label">What Tailor noticed <span class="tag">Sample week</span></span>
+              <div class="app-noticed">
+                <div class="seen"><span><b>Around 12 hours in Google Sheets</b><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span></div>
+                <div class="seen"><span><b>Up to 13 AI chats open at once</b><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i></span></span></div>
+              </div>
+              <span class="app-label">Ideas</span>
               <div class="app-cards">
-                <div class="slot" style="--i: 0">
-                  <div class="idea"><span class="glyph" data-accent="tide"><svg><use href="#i-book" /></svg></span><span><strong>Paper Week</strong><small>One paper a day, with notes</small></span></div>
+                <div class="slot">
+                  <div class="idea"><span class="glyph" data-accent="tide"><svg><use href="#i-book" /></svg></span><span><strong>Paper Ledger</strong><small>Your papers, without the spreadsheet</small></span></div>
                 </div>
-                <div class="slot" style="--i: 1">
-                  <div class="idea"><span class="glyph" data-accent="clay"><svg><use href="#i-copy" /></svg></span><span><strong>Copy No More</strong><small>Paper details go straight in</small></span></div>
-                </div>
-                <div class="slot" style="--i: 2">
+                <div class="slot">
                   <div class="idea"><span class="glyph" data-accent="ink"><svg><use href="#i-layers" /></svg></span><span><strong>Chat Tidy</strong><small>All your AI chats in one place</small></span></div>
                 </div>
               </div>
             </div>
           </div>
           <div class="float float--noticed glass" aria-hidden="true">
-            <span class="tag">Sample week</span>
-            <p>You copied from arxiv.org into Google Sheets <b>26 times</b>.</p>
+            <p><b>No prompt.</b> It learned this from your week.</p>
           </div>
           <div class="float float--tested glass" aria-hidden="true">
             <span class="tick"><svg class="i"><use href="#i-check" /></svg></span>
             <p>Tested like you'd use it</p>
           </div>
-          <figcaption class="sr-only">Tailor's Ideas page: you ask to plan your week, and three small app ideas appear, based on what Tailor noticed.</figcaption>
+          <figcaption class="sr-only">Tailor's Ideas page: what Tailor noticed in a sample week, about 12 hours in Google Sheets and up to 13 AI chats open at once, and the two app ideas that came from it.</figcaption>
         </figure>
       </section>
 
@@ -91,13 +92,13 @@
         <article class="step">
           <div class="step-copy">
             <h2>It notices pain&nbsp;points before you.</h2>
-            <p>Counted, never guessed. You see every number, and you can delete anything.</p>
+            <p>It sees where your hours go and what you keep redoing. Every number is real.</p>
           </div>
           <figure class="shot glass" aria-hidden="true">
             <span class="tag">Sample week</span>
             <div class="noticed">
+              <div class="row"><span><strong>Around 12 hours in Google Sheets</strong><small>This week · in all 7 work sessions</small></span><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
               <div class="row"><span><strong>Paper details retyped into a sheet</strong><small>26 times · arxiv.org → Google Sheets</small></span><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
-              <div class="row"><span><strong>Too many AI chats open</strong><small>Up to 13 claude.ai tabs at once</small></span><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
               <div class="row"><span><strong>Back and forth while reading</strong><small>103 switches · Obsidian ↔ arxiv.org</small></span><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i></span></div>
             </div>
             <p class="shot-note"><svg class="i"><use href="#i-lock" /></svg>Passwords, banking and private chats are never recorded.</p>
