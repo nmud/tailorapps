@@ -215,7 +215,7 @@ pub async fn prepare(template: &Path, workspace: &Path, log: &Channel<String>) -
     if !template.is_dir() {
         return Err(format!("Tailor is missing some of its files ({}). Please reinstall Tailor.", template.display()));
     }
-    for name in ["package.json", "build.mjs"] {
+    for name in ["package.json", "package-lock.json", "build.mjs"] {
         std::fs::copy(template.join(name), workspace.join(name)).map_err(|e| e.to_string())?;
     }
     copy_tree(&template.join("template"), &workspace.join("template")).map_err(|e| e.to_string())?;
@@ -239,7 +239,8 @@ pub async fn prepare(template: &Path, workspace: &Path, log: &Channel<String>) -
     let _ = log.send("Installing the shared app runtime (React, Vite). This happens once.".into());
     let mut child = node
         .npm()
-        .args(["install", "--no-audit", "--no-fund", "--loglevel=error"])
+        // Exact versions from the shipped lockfile, and no package install scripts.
+        .args(["ci", "--ignore-scripts", "--no-audit", "--no-fund", "--loglevel=error"])
         .current_dir(workspace)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

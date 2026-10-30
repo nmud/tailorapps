@@ -32,6 +32,44 @@ function tailorHtml(manifest) {
   };
 }
 
+// Generated code may only use files inside its own folder and the shared packages. Without this,
+// a ?raw or ?url import (or a CSS url()) could copy any file on the computer into the app.
+const WORKSPACE_MODULES = path.resolve(appDir, '../../node_modules');
+const ALLOWED_ROOTS = [appDir, WORKSPACE_MODULES].map((p) => p.toLowerCase() + path.sep);
+
+function allowedFile(id) {
+  const file = String(id).split('?')[0];
+  if (!file || file.startsWith('\0')) return true; // virtual modules
+  // Bundle entries name their source relative to the app folder.
+  const full = path.resolve(appDir, file).toLowerCase();
+  return ALLOWED_ROOTS.some((root) => full.startsWith(root));
+}
+
+function confine() {
+  const refuse = (what) => {
+    throw new Error(`This app tried to use a file outside its own folder (${what}). Only use files inside src/.`);
+  };
+  return {
+    name: 'tailor-confine',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (resolved && !resolved.external && !allowedFile(resolved.id)) refuse(source);
+      return resolved;
+    },
+    load(id) {
+      if (!allowedFile(id)) refuse(path.basename(id.split('?')[0]));
+      return null;
+    },
+    generateBundle(_, bundle) {
+      for (const item of Object.values(bundle)) {
+        const sources = item.type === 'chunk' ? [...(item.moduleIds ?? Object.keys(item.modules ?? {}))] : [...(item.originalFileNames ?? [])];
+        for (const id of sources) if (!allowedFile(id)) refuse(path.basename(String(id).split('?')[0]));
+      }
+    },
+  };
+}
+
 function describe(err) {
   const lines = [];
   const loc = err.loc ? `${path.relative(appDir, err.loc.file ?? err.id ?? '')}:${err.loc.line}:${err.loc.column}` : err.id ? path.relative(appDir, err.id) : '';
@@ -50,12 +88,15 @@ try {
     base: './',
     configFile: false,
     logLevel: 'silent',
-    plugins: [react(), tailorHtml(manifest)],
-    resolve: { dedupe: ['react', 'react-dom'] },
+    plugins: [confine(), react(), tailorHtml(manifest)],
+    resolve: { dedupe: ['react', 'react-dom'], preserveSymlinks: true },
+    publicDir: path.join(appDir, 'public'),
     build: {
       outDir: 'dist',
       emptyOutDir: true,
       sourcemap: false,
+      // Every asset becomes a separate file, so the check above sees all of them.
+      assetsInlineLimit: 0,
       chunkSizeWarningLimit: 5000,
       reportCompressedSize: false,
     },
