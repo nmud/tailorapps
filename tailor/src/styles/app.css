@@ -259,6 +259,10 @@ details.more > div { margin-top: var(--space-sm); }
 .steps-list { margin: 0; padding-left: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-xs); font-size: var(--text-lg); }
 .row { display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap; }
 .row--end { justify-content: flex-end; }
+/* A switch beside a sentence: keep them side by side instead of wrapping the sentence below. */
+.row--nowrap { flex-wrap: nowrap; gap: var(--space-md); }
+.row--nowrap > .switch { flex: none; }
+.row--nowrap > span { flex: 1; min-width: 0; }
 
 .dialog-scrim { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: var(--space-lg); background: var(--scrim); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: fade var(--dur-short) var(--ease-out); }
 .dialog { width: min(460px, 100%); display: flex; flex-direction: column; gap: var(--space-md); padding: var(--space-lg); border-radius: var(--radius-xl); background-color: var(--glass-strong); backdrop-filter: var(--glass-blur-strong); -webkit-backdrop-filter: var(--glass-blur-strong); box-shadow: var(--glass-highlight), var(--glass-shadow-lifted); animation: rise var(--dur-short) var(--ease-out); }

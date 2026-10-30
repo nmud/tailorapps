@@ -79,7 +79,7 @@ export default function Onboarding() {
           Tailor never reads what you type, copy or write in messages, and it skips password and banking sites. You can change this anytime.
         </p>
 
-        <label className="row" style={{ cursor: 'pointer' }}>
+        <label className="row row--nowrap" style={{ cursor: 'pointer' }}>
           <Switch label="Open Tailor when your computer starts" checked={startup} onChange={setStartup} />
           <span>Open Tailor when your computer starts, so it can keep learning. It waits quietly in the system tray.</span>
         </label>
