@@ -11,6 +11,24 @@
     } catch (e) {}
   });
 
+  // Most websites don't let a page read their answers, so reading from the sites this app was
+  // approved for goes through Tailor, which fetches them for it (GET only, approved sites only).
+  var nativeFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    try {
+      var req = typeof Request !== 'undefined' && input instanceof Request ? input : null;
+      var url = new URL(req ? req.url : String(input), location.href);
+      var method = String((init && init.method) || (req && req.method) || 'GET').toUpperCase();
+      if (url.origin !== location.origin && url.protocol === 'https:' && method === 'GET') {
+        return nativeFetch('/__tailor/net?url=' + encodeURIComponent(url.href), {
+          cache: 'no-store',
+          signal: (init && init.signal) || (req && req.signal) || undefined,
+        });
+      }
+    } catch (e) {}
+    return nativeFetch(input, init);
+  };
+
   // Match Tailor's light or dark theme, and follow it when it changes.
   function syncTheme() {
     fetch('/__tailor/theme', { cache: 'no-store' })

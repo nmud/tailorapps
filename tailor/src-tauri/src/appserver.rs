@@ -310,12 +310,97 @@ fn api(ctx: &Ctx, slug: &str, app_dir: &Path, method: &Method, headers: &HeaderM
     json_response(StatusCode::NOT_FOUND, json!({ "error": "not found" }))
 }
 
+/// An address the app was approved to reach: https, on an approved host, nothing hidden in it.
+fn net_allowed(url: &reqwest::Url, approved: &[String]) -> bool {
+    url.scheme() == "https"
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.port().is_none()
+        && url.host_str().is_some_and(|h| approved.iter().any(|a| *a == format!("https://{h}")))
+}
+
+const NET_MAX_BYTES: usize = 5 * 1024 * 1024;
+
+/// Most websites don't let a web page read their answers (no CORS headers), so an app's approved
+/// sites are fetched here on its behalf. Only GET, only the hosts the person approved (redirects
+/// included), no cookies, small and quick. This reaches nothing the app's own rules didn't
+/// already allow it to contact.
+async fn net(slug: &str, app_dir: &Path, method: &Method, headers: &HeaderMap, uri: &Uri) -> Response {
+    if !app_dir.join("tailor.json").is_file() {
+        return json_response(StatusCode::NOT_FOUND, json!({ "error": "not found" }));
+    }
+    if !from_app_itself(headers, slug) {
+        return json_response(StatusCode::FORBIDDEN, json!({ "error": "not allowed" }));
+    }
+    if method != Method::GET {
+        return json_response(StatusCode::METHOD_NOT_ALLOWED, json!({ "error": "only GET" }));
+    }
+    let target = reqwest::Url::parse(&format!("http://app{uri}"))
+        .ok()
+        .and_then(|u| u.query_pairs().find(|(k, _)| k == "url").map(|(_, v)| v.into_owned()))
+        .and_then(|t| reqwest::Url::parse(&t).ok());
+    let Some(target) = target else {
+        return json_response(StatusCode::BAD_REQUEST, json!({ "error": "no url" }));
+    };
+    let approved = approved_hosts(app_dir);
+    if !net_allowed(&target, &approved) {
+        return json_response(StatusCode::FORBIDDEN, json!({ "error": "This app wasn’t given permission to reach that site." }));
+    }
+    let follow = approved.clone();
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent("Tailor app")
+        .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+            if attempt.previous().len() >= 3 || !net_allowed(attempt.url(), &follow) {
+                attempt.stop()
+            } else {
+                attempt.follow()
+            }
+        }))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return json_response(StatusCode::INTERNAL_SERVER_ERROR, json!({ "error": "unavailable" })),
+    };
+    let mut res = match client.get(target).send().await {
+        Ok(r) => r,
+        Err(_) => return json_response(StatusCode::BAD_GATEWAY, json!({ "error": "That site didn’t answer." })),
+    };
+    let status = StatusCode::from_u16(res.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let kind = res.headers().get(header::CONTENT_TYPE).cloned();
+    let mut bytes = Vec::new();
+    loop {
+        match res.chunk().await {
+            Ok(Some(chunk)) => {
+                if bytes.len() + chunk.len() > NET_MAX_BYTES {
+                    return json_response(StatusCode::PAYLOAD_TOO_LARGE, json!({ "error": "That answer is too big." }));
+                }
+                bytes.extend_from_slice(&chunk);
+            }
+            Ok(None) => break,
+            Err(_) => return json_response(StatusCode::BAD_GATEWAY, json!({ "error": "That site didn’t answer." })),
+        }
+    }
+    let mut out = Response::new(Body::from(bytes));
+    *out.status_mut() = status;
+    let h = out.headers_mut();
+    h.insert(header::CONTENT_TYPE, kind.unwrap_or(HeaderValue::from_static("application/octet-stream")));
+    h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    // Data for the app to read, never a page that runs on the app's address.
+    h.insert("content-security-policy", HeaderValue::from_static("sandbox; default-src 'none'"));
+    out
+}
+
 async fn handle(State(ctx): State<Ctx>, method: Method, headers: HeaderMap, uri: Uri, body: Bytes) -> Response {
     let Some(slug) = slug_from_host(&headers) else {
         return (StatusCode::NOT_FOUND, "Tailor app host: no app at this address").into_response();
     };
     let state = &ctx.state;
     let app_dir = state.workspace_dir.join("apps").join(&slug);
+    if uri.path() == "/__tailor/net" {
+        return net(&slug, &app_dir, &method, &headers, &uri).await;
+    }
     if uri.path().starts_with("/__tailor/") {
         return api(&ctx, &slug, &app_dir, &method, &headers, uri.path(), &body);
     }
@@ -357,5 +442,29 @@ async fn handle(State(ctx): State<Ctx>, method: Method, headers: HeaderMap, uri:
             res
         }
         Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn url(s: &str) -> reqwest::Url {
+        reqwest::Url::parse(s).unwrap()
+    }
+
+    #[test]
+    fn net_reaches_only_approved_https_hosts() {
+        let approved = vec!["https://export.arxiv.org".to_string()];
+        assert!(net_allowed(&url("https://export.arxiv.org/api/query?id_list=1706.03762"), &approved));
+        // Not approved, a lookalike, plain http, another port, credentials, or a subdomain.
+        assert!(!net_allowed(&url("https://example.com/"), &approved));
+        assert!(!net_allowed(&url("https://export.arxiv.org.evil.example/"), &approved));
+        assert!(!net_allowed(&url("http://export.arxiv.org/"), &approved));
+        assert!(!net_allowed(&url("https://export.arxiv.org:8443/"), &approved));
+        assert!(!net_allowed(&url("https://user:pw@export.arxiv.org/"), &approved));
+        assert!(!net_allowed(&url("https://api.export.arxiv.org/"), &approved));
+        assert!(!net_allowed(&url("https://localhost/"), &approved));
+        assert!(!net_allowed(&url("https://export.arxiv.org/"), &[]));
     }
 }

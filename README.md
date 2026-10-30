@@ -40,7 +40,7 @@ Everything runs on Meta models. People never choose a model; the backend assigns
 
 | Concern | What Tailor does |
 | --- | --- |
-| Generated code | Each app runs in a sealed frame at its own address (`<app>.localhost:48100`) with no Tauri access (verified: calls from inside are dropped) and a CSP that blocks the network unless you approved a host. |
+| Generated code | Each app runs in a sealed frame at its own address (`<app>.localhost:48100`) with no Tauri access (verified: calls from inside are dropped) and a CSP that blocks the network unless you approved a host. Approved sites are read through Tailor (GET only, those hosts only, no cookies), since most sites don't answer web pages directly. |
 | Live data for apps | Off by default. An idea may ask for **open tabs**, **open windows**, or **AI tool names** (MCP servers, connectors, plugins, skills). You see this before making it, and the app host refuses anything not granted. Tool scanning reads names only, never commands or keys. |
 | AI calls | Go to Tailor's backend with your sign-in token. The Muse key is a server secret. Per-person and global daily caps protect the credits (spend-limit alerts don't stop billing). |
 | Accounts | Supabase Auth, email and password. The refresh token is kept in Windows Credential Manager; the access token stays in memory and never reaches the page. |
