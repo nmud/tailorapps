@@ -2,7 +2,9 @@
 //! Separate origins give every app its own storage, and the CSP header limits each
 //! app to the network domains the user approved.
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
 
 use axum::Router;
 use axum::body::{Body, Bytes};
@@ -17,6 +19,61 @@ use crate::{APPS_PORT, Shared, now_ms};
 
 /// Live data an app may be allowed to read. The person sees and approves these per app.
 pub const FEEDS: &[&str] = &["open-tabs", "open-windows", "ai-tools"];
+
+/// Tailor's own pages, which frame apps and show their theme and icon.
+pub fn launchers() -> &'static [&'static str] {
+    if cfg!(debug_assertions) {
+        &["http://tauri.localhost", "https://tauri.localhost", "tauri://localhost", "http://localhost:1420"]
+    } else {
+        &["http://tauri.localhost", "https://tauri.localhost", "tauri://localhost"]
+    }
+}
+
+/// Apps the Tester is using right now: links they open are not sent to the browser.
+static TESTING: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(Default::default);
+/// When each app last opened a link, to stop an app from flooding the browser.
+static LAST_OPEN: LazyLock<Mutex<HashMap<String, i64>>> = LazyLock::new(Default::default);
+
+pub fn set_testing(slug: &str, testing: bool) {
+    let mut set = TESTING.lock().unwrap();
+    if testing {
+        set.insert(slug.to_string());
+    } else {
+        set.remove(slug);
+    }
+}
+
+fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers.get(name).and_then(|v| v.to_str().ok())
+}
+
+/// A request made by the app's own page, not by another website or another app. Requests with
+/// no browser headers come from programs on this computer, which can read these files anyway.
+fn from_app_itself(headers: &HeaderMap, slug: &str) -> bool {
+    let site_ok = header_str(headers, "sec-fetch-site").map(|v| v == "same-origin").unwrap_or(true);
+    let origin_ok = header_str(headers, "origin").map(|o| o == format!("http://{slug}.localhost:{APPS_PORT}")).unwrap_or(true);
+    site_ok && origin_ok
+}
+
+/// A request from the app itself or from one of Tailor's own pages.
+fn from_app_or_tailor(headers: &HeaderMap, slug: &str) -> bool {
+    if from_app_itself(headers, slug) {
+        return true;
+    }
+    let from = header_str(headers, "origin").or_else(|| header_str(headers, "referer")).unwrap_or("");
+    launchers().iter().any(|l| from == *l || from.starts_with(&format!("{l}/")))
+}
+
+/// A link an app may open: plain web addresses only, rebuilt from their parts.
+fn safe_link(raw: &str) -> Option<String> {
+    let url = reqwest::Url::parse(raw.trim()).ok()?;
+    if !matches!(url.scheme(), "http" | "https") || !url.username().is_empty() || url.password().is_some() {
+        return None;
+    }
+    url.host_str()?;
+    let out = url.to_string();
+    (out.len() <= 2048).then_some(out)
+}
 
 #[derive(Clone)]
 struct Ctx {
@@ -96,6 +153,10 @@ fn approved_hosts(app_dir: &Path) -> Vec<String> {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else {
         return vec![];
     };
+    // An app that can read live data from this computer never also gets the internet.
+    if v["feeds"].as_array().is_some_and(|f| !f.is_empty()) {
+        return vec![];
+    }
     v["network"]
         .as_array()
         .map(|a| {
@@ -118,7 +179,8 @@ fn csp(hosts: &[String]) -> String {
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
          img-src 'self' data: blob: {net}; font-src 'self' data:; connect-src 'self' {net}; \
          media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'self'; \
-         frame-ancestors 'self' http://localhost:1420 http://tauri.localhost https://tauri.localhost tauri://localhost"
+         frame-ancestors 'self' {}",
+        launchers().join(" ")
     )
 }
 
@@ -165,13 +227,28 @@ fn feed(state: &Shared, name: &str) -> Value {
             json!({ "available": at > 0, "updatedAt": at, "items": windows })
         }
         // Read on request from config files (names only); nothing is recorded over time.
-        "ai-tools" => json!({ "available": true, "updatedAt": now_ms(), "items": crate::aitools::scan() }),
+        "ai-tools" => {
+            if !cfg.enabled {
+                return unavailable("Turn on learning in Tailor to use this.");
+            }
+            json!({ "available": true, "updatedAt": now_ms(), "items": crate::aitools::scan() })
+        }
         _ => unavailable("Unknown data."),
     }
 }
 
 /// Small API for generated apps: read approved feeds, and open web links in the browser.
-fn api(ctx: &Ctx, app_dir: &Path, method: &Method, path: &str, body: &Bytes) -> Response {
+fn api(ctx: &Ctx, slug: &str, app_dir: &Path, method: &Method, headers: &HeaderMap, path: &str, body: &Bytes) -> Response {
+    if !app_dir.join("tailor.json").is_file() {
+        return json_response(StatusCode::NOT_FOUND, json!({ "error": "not found" }));
+    }
+    if path == "/__tailor/theme" || path == "/__tailor/icon" {
+        if !from_app_or_tailor(headers, slug) {
+            return json_response(StatusCode::FORBIDDEN, json!({ "error": "not allowed" }));
+        }
+    } else if !from_app_itself(headers, slug) {
+        return json_response(StatusCode::FORBIDDEN, json!({ "error": "not allowed" }));
+    }
     if let Some(name) = path.strip_prefix("/__tailor/feeds/") {
         if method != Method::GET || !FEEDS.contains(&name) {
             return json_response(StatusCode::NOT_FOUND, unavailable("Unknown data."));
@@ -187,7 +264,12 @@ fn api(ctx: &Ctx, app_dir: &Path, method: &Method, path: &str, body: &Bytes) -> 
             .unwrap_or_else(|| "light".into());
         let mut res = json_response(StatusCode::OK, json!({ "theme": theme }));
         // The app's window frame (a Tailor page) follows the theme too.
-        res.headers_mut().insert("access-control-allow-origin", HeaderValue::from_static("*"));
+        if let Some(origin) = header_str(headers, "origin").filter(|o| launchers().contains(o)) {
+            if let Ok(v) = HeaderValue::from_str(origin) {
+                res.headers_mut().insert("access-control-allow-origin", v);
+                res.headers_mut().insert(header::VARY, HeaderValue::from_static("Origin"));
+            }
+        }
         return res;
     }
     if path == "/__tailor/icon" {
@@ -201,17 +283,29 @@ fn api(ctx: &Ctx, app_dir: &Path, method: &Method, path: &str, body: &Bytes) -> 
         };
     }
     if path == "/__tailor/open" && method == Method::POST {
-        let url = serde_json::from_slice::<Value>(body)
+        if !header_str(headers, "content-type").unwrap_or("").starts_with("application/json") {
+            return json_response(StatusCode::UNSUPPORTED_MEDIA_TYPE, json!({ "ok": false }));
+        }
+        let Some(url) = serde_json::from_slice::<Value>(body)
             .ok()
-            .and_then(|v| v["url"].as_str().map(String::from))
-            .filter(|u| u.starts_with("https://") || u.starts_with("http://"));
-        return match url {
-            Some(u) => {
-                let _ = ctx.app.opener().open_url(u, None::<&str>);
-                json_response(StatusCode::OK, json!({ "ok": true }))
-            }
-            None => json_response(StatusCode::BAD_REQUEST, json!({ "ok": false })),
+            .and_then(|v| v["url"].as_str().and_then(safe_link))
+        else {
+            return json_response(StatusCode::BAD_REQUEST, json!({ "ok": false }));
         };
+        // While the Tester uses the app, links are noted but nothing opens on screen.
+        if TESTING.lock().unwrap().contains(slug) {
+            return json_response(StatusCode::OK, json!({ "ok": true, "opened": false }));
+        }
+        let now = now_ms();
+        {
+            let mut last = LAST_OPEN.lock().unwrap();
+            if now - last.get(slug).copied().unwrap_or(0) < 1_000 {
+                return json_response(StatusCode::TOO_MANY_REQUESTS, json!({ "ok": false }));
+            }
+            last.insert(slug.to_string(), now);
+        }
+        let _ = ctx.app.opener().open_url(url, None::<&str>);
+        return json_response(StatusCode::OK, json!({ "ok": true }));
     }
     json_response(StatusCode::NOT_FOUND, json!({ "error": "not found" }))
 }
@@ -223,7 +317,7 @@ async fn handle(State(ctx): State<Ctx>, method: Method, headers: HeaderMap, uri:
     let state = &ctx.state;
     let app_dir = state.workspace_dir.join("apps").join(&slug);
     if uri.path().starts_with("/__tailor/") {
-        return api(&ctx, &app_dir, &method, uri.path(), &body);
+        return api(&ctx, &slug, &app_dir, &method, &headers, uri.path(), &body);
     }
     let dist = app_dir.join("dist");
     if !dist.is_dir() {
@@ -255,6 +349,8 @@ async fn handle(State(ctx): State<Ctx>, method: Method, headers: HeaderMap, uri:
             h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
             h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
             h.insert("referrer-policy", HeaderValue::from_static("no-referrer"));
+            // Looking up a made-up address (data.elsewhere.example) would also send data out.
+            h.insert("x-dns-prefetch-control", HeaderValue::from_static("off"));
             if let Ok(v) = HeaderValue::from_str(&csp(&approved_hosts(&app_dir))) {
                 h.insert("content-security-policy", v);
             }

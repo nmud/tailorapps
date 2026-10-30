@@ -1,6 +1,6 @@
-//! Local endpoint for the browser extension. Only extension origins may call it,
-//! and every request must carry the `x-tailor-client` header, so ordinary web pages
-//! cannot post events (the custom header forces a CORS preflight they will fail).
+//! Local endpoint for the browser extension. Only the Tailor add-on may call it: its fixed ID
+//! (from the `key` in its manifest), the `x-tailor-client` header (which forces a CORS preflight
+//! that web pages fail), and this exact address (so DNS-rebinding pages are refused).
 
 use axum::extract::State;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, header};
@@ -45,10 +45,16 @@ struct TabsSnapshot {
     tabs: Vec<LiveTab>,
 }
 
+/// The Tailor add-on in Chrome and Edge. Its ID comes from the `key` in extension/manifest.json.
+const EXTENSION_ORIGIN: &str = "chrome-extension://lenfcjijjcpojhgolcdhchipmabbdoha";
+
 fn is_extension_origin(origin: &str) -> bool {
-    origin.starts_with("chrome-extension://")
-        || origin.starts_with("moz-extension://")
-        || origin.starts_with("extension://")
+    origin == EXTENSION_ORIGIN
+}
+
+fn host_ok(headers: &HeaderMap) -> bool {
+    let host = headers.get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("");
+    host == format!("127.0.0.1:{INGEST_PORT}") || host == format!("localhost:{INGEST_PORT}")
 }
 
 fn authorized(headers: &HeaderMap) -> bool {
@@ -61,7 +67,7 @@ fn authorized(headers: &HeaderMap) -> bool {
         Some(o) => is_extension_origin(o),
         None => true,
     };
-    client_ok && origin_ok
+    client_ok && origin_ok && host_ok(headers)
 }
 
 pub async fn serve(state: Shared, app: AppHandle) {

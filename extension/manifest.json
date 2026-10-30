@@ -3,17 +3,38 @@
   "name": "Tailor Observer",
   "version": "0.1.0",
   "description": "Sends permissioned browsing signals (sites, tab titles, time, copy/paste counts; never content) to the Tailor app on this computer.",
-  "permissions": ["tabs", "storage", "alarms", "idle"],
-  "host_permissions": ["http://127.0.0.1:47821/*"],
-  "background": { "service_worker": "background.js" },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3l0np2Jfrmab5f9IpaMqGeTZJQ113tzJKpKFXUlXmqHjNZvuhMjoNvH173eVH0Udr4uZn7FIjJe6oFdm53afMXM9lJd7D38mPF/kAPm/sGPZsE6nAbpmJI8AvKc5aPj3SgQfSSq90gR8Q9pwnTtbAUXfZe5KV7qfbxgJgaewcvQ7dQEe3weA3zkxMlxG0F6GhwhbqJlmQxDWMEweMne7QF/Gh2rFfhbpOCYDpKMUwfhMT8Ny+SesYmRfD4AYy6evz/y0tV20zcKMpTfTdV6NIM/YZPRstjZAl4u8k5XcDb56J8ZbpggwEu4HBbp0qr1FcywXyQmKrpkerwF0FiOccwIDAQAB",
+  "permissions": [
+    "tabs",
+    "storage",
+    "alarms",
+    "idle"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:47821/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content.js"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": false
     }
   ],
-  "action": { "default_popup": "popup.html", "default_title": "Tailor" },
-  "icons": { "32": "icon-32.png", "128": "icon-128.png" }
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tailor"
+  },
+  "icons": {
+    "32": "icon-32.png",
+    "128": "icon-128.png"
+  }
 }

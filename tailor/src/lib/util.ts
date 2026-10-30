@@ -14,14 +14,18 @@ export function slugify(name: string): string {
   );
 }
 
+/**
+ * An app's address name. A random ending means a new app never reuses a deleted app's address,
+ * and so never sees the data that app saved.
+ */
 export function uniqueSlug(name: string, taken: Set<string>): string {
   const base = slugify(name);
-  if (!taken.has(base)) return base;
-  for (let i = 2; i < 100; i++) {
-    const s = `${base}-${i}`;
-    if (!taken.has(s)) return s;
+  for (;;) {
+    const bytes = crypto.getRandomValues(new Uint8Array(4));
+    const tail = Array.from(bytes, (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
+    const slug = `${base}-${tail}`;
+    if (!taken.has(slug)) return slug;
   }
-  return `${base}-${Date.now().toString(36)}`;
 }
 
 /** Stable short hash, for pattern ids derived from signal ids. */

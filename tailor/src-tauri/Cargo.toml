@@ -34,6 +34,9 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
+# Same versions Tauri uses, to stop app frames navigating away (contain.rs).
+webview2-com = "0.39"
+windows-core = "0.62"
 windows = { version = "0.58", features = [
   "Win32_Foundation",
   "Win32_UI_WindowsAndMessaging",

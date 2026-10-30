@@ -84,6 +84,7 @@ export const api = {
   appDelete: (id: string) => invoke<void>('app_delete', { id }),
   appOpenWindow: (id: string) => invoke<void>('app_open_window', { id }),
   appSetIcon: (id: string, png: number[]) => invoke<void>('app_set_icon', { id, png }),
+  appTesting: (id: string, testing: boolean) => invoke<void>('app_testing', { id, testing }),
   appInstall: (id: string, name: string, description: string) => invoke<string>('app_install', { id, name, description }),
   appUninstall: (id: string, shortcut?: string) => invoke<void>('app_uninstall', { id, shortcut }),
   appCloseWindow: (id: string) => invoke<void>('app_close_window', { id }),

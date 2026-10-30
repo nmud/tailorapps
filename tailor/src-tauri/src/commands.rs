@@ -310,3 +310,9 @@ pub fn app_uninstall(state: State<'_, Shared>, id: String, shortcut: Option<Stri
     }
     Ok(())
 }
+
+/// The Tester is using this app (or has stopped): links it opens are not sent to the browser.
+#[tauri::command]
+pub fn app_testing(id: String, testing: bool) {
+    crate::appserver::set_testing(&id, testing);
+}

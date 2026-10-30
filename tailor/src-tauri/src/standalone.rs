@@ -131,8 +131,37 @@ pub fn create_shortcut(slug: &str, name: &str, description: &str, icon: &Path) -
     Ok(path)
 }
 
+/// Remove one of Tailor's Start menu shortcuts: only a plain `.lnk` file directly inside the
+/// "Tailor apps" folder, so a path like `...\Tailor apps\..\..\x` can't delete anything else.
 pub fn remove_shortcut(path: &Path) {
-    if path.starts_with(start_menu_dir()) {
+    if shortcut_removable(path, &start_menu_dir()) {
         let _ = std::fs::remove_file(path);
+    }
+}
+
+fn shortcut_removable(path: &Path, dir: &Path) -> bool {
+    let plain_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.to_ascii_lowercase().ends_with(".lnk"));
+    let inside = path.components().all(|c| matches!(c, std::path::Component::Prefix(_) | std::path::Component::RootDir | std::path::Component::Normal(_)));
+    plain_name && inside && path.parent() == Some(dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shortcut_removable;
+    use std::path::Path;
+
+    #[test]
+    fn only_shortcuts_directly_in_the_tailor_folder_can_be_removed() {
+        let dir = Path::new(r"C:\Users\u\Start Menu\Programs\Tailor apps");
+        assert!(shortcut_removable(&dir.join("Paper Ledger.lnk"), dir));
+        assert!(!shortcut_removable(&dir.join(r"..\..\..\Documents\thesis.docx"), dir));
+        assert!(!shortcut_removable(&dir.join(r"..\..\Tailor apps\x.lnk"), dir));
+        assert!(!shortcut_removable(&dir.join(r"..\Other.lnk"), dir));
+        assert!(!shortcut_removable(&dir.join("notes.txt"), dir));
+        assert!(!shortcut_removable(&dir.join(r"sub\x.lnk"), dir));
+        assert!(!shortcut_removable(Path::new(r"C:\Windows\x.lnk"), dir));
     }
 }

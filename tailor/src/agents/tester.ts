@@ -2,7 +2,7 @@
 // actually uses the app (reads the screen, clicks, types) in a hidden copy. It sees the app's
 // description and a one-line sketch of the person; never their activity.
 
-import { appUrl } from '../lib/api';
+import { api, appUrl } from '../lib/api';
 import { chatJSON } from '../lib/llm';
 import { getState, setState } from '../lib/store';
 import type { AppRecord, TestReport } from '../lib/types';
@@ -191,6 +191,7 @@ export async function testApp(app: AppRecord, log: (line: string) => void): Prom
     `Your tasks, in order:\n${tasks.map((t, i) => `${i + 1}. ${t}`).join('\n')}`,
   ].join('\n\n');
 
+  await api.appTesting(app.id, true);
   await openFrame(app.id);
   const history: string[] = [];
   let screen: Screen;
@@ -224,5 +225,6 @@ export async function testApp(app: AppRecord, log: (line: string) => void): Prom
   } finally {
     await send(app.id, { op: 'end' }).catch(() => {});
     closeFrame();
+    await api.appTesting(app.id, false).catch(() => {});
   }
 }

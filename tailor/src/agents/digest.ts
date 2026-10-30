@@ -455,7 +455,8 @@ function renderDigest(d: Omit<Digest, 'text'>): string {
   for (const s of d.sessions.slice(-12)) {
     const top = [...s.dwell.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
     const sampleTitles = top
-      .flatMap(([ctx]) => [...(s.titles.get(ctx) ?? [])].slice(0, 2).map((t) => `${ctx}: "${t}"`))
+      // Titles are quoted data: no quote marks or line breaks that could pass as instructions.
+      .flatMap(([ctx]) => [...(s.titles.get(ctx) ?? [])].slice(0, 2).map((t) => `${ctx}: "${t.replace(/["\r\n]/g, "'").slice(0, 100)}"`))
       .slice(0, 6);
     lines.push(
       `- S${s.index + 1} ${shortDate(s.start)} ${clockTime(s.start)}–${clockTime(s.end)}: ${top

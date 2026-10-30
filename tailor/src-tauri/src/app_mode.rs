@@ -108,6 +108,7 @@ pub fn run(slug: String) {
                 }
             }
             let window = builder.build()?;
+            crate::contain::keep_frames_local(&window);
             #[cfg(windows)]
             if let Ok(hwnd) = window.hwnd() {
                 standalone::set_window_identity(hwnd.0 as isize, &slug, &name, &dir.join("icon.ico"));

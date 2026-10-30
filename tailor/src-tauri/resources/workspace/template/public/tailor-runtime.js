@@ -3,6 +3,14 @@
 // 2. Let Tailor's Tester agent read the screen and use the app like a person would.
 // It sends only error text and what is visible on screen. Saved data is restored after a test.
 (function () {
+  // Apps reach only the web addresses the person approved (enforced by the page's security rules).
+  // Peer-to-peer connections would get around that, so they are switched off before app code runs.
+  ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel', 'RTCIceCandidate', 'RTCSessionDescription'].forEach(function (name) {
+    try {
+      Object.defineProperty(window, name, { value: undefined, writable: false, configurable: false });
+    } catch (e) {}
+  });
+
   // Match Tailor's light or dark theme, and follow it when it changes.
   function syncTheme() {
     fetch('/__tailor/theme', { cache: 'no-store' })

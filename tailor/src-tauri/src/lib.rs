@@ -4,6 +4,7 @@ mod appserver;
 mod auth;
 mod collector;
 mod commands;
+mod contain;
 mod db;
 mod ingest;
 mod llm;
@@ -154,6 +155,9 @@ pub fn run() {
                     purge_old(&purge);
                 }
             });
+            if let Some(main) = app.get_webview_window("main") {
+                contain::keep_frames_local(&main);
+            }
             collector::start(state, handle);
             if !background {
                 show_main(app.handle());
@@ -191,6 +195,7 @@ pub fn run() {
             commands::app_open_window,
             commands::app_close_window,
             commands::app_set_icon,
+            commands::app_testing,
             commands::app_install,
             commands::app_uninstall,
         ])
