@@ -1,0 +1,158 @@
+/* Tailor motion and hover feel. Loaded after app.css. Reduced-motion users get quick fades only. */
+
+:root {
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --spring-soft: cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+/* Theme changes cross-fade instead of snapping. */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: background-color 350ms var(--ease-out), color 350ms var(--ease-out), border-color 350ms var(--ease-out), box-shadow 350ms var(--ease-out) !important;
+}
+
+/* Each screen slides in when you switch to it. */
+.view { height: 100%; animation: view-in 340ms var(--ease-out) both; }
+@keyframes view-in { from { opacity: 0; transform: translateY(10px) scale(0.995); } }
+
+/* Lists arrive one item after another. */
+.stagger > * { animation: rise 460ms var(--ease-out) both; }
+.stagger > *:nth-child(1) { animation-delay: 20ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 140ms; }
+.stagger > *:nth-child(5) { animation-delay: 180ms; }
+.stagger > *:nth-child(6) { animation-delay: 220ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 260ms; }
+
+/* The current page is marked by a glass pill that glides between items. */
+.nav { position: relative; }
+.nav-pill {
+  position: absolute; left: 0; right: 0; top: 0; height: 42px; z-index: 0; pointer-events: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--glass-strong); background-image: var(--glass-sheen);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-highlight), 0 4px 14px oklch(25% 0.03 70 / 0.1);
+  transition: transform 460ms var(--spring), height 300ms var(--ease-out), opacity 200ms var(--ease-out);
+}
+.nav-item { position: relative; z-index: 1; }
+.nav-item[aria-current="page"] { background: transparent; border-color: transparent; box-shadow: none; }
+.nav-item svg { transition: transform 300ms var(--spring), color 200ms var(--ease-out); }
+.nav-item:hover { background: transparent; }
+.nav-item:hover svg { transform: scale(1.12) rotate(-4deg); }
+.nav-item:active { transform: scale(0.97); }
+
+/* Glass catches the light where the pointer is. */
+.shine { position: relative; isolation: isolate; }
+.shine::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), var(--shine), transparent 62%);
+  opacity: 0; transition: opacity 260ms var(--ease-out);
+}
+.shine:hover::after { opacity: 1; }
+
+/* Cards lift toward you on hover. */
+.idea-card, .tile, .noticed-row, .choice, .source, .learning-card {
+  transition: transform 260ms var(--spring-soft), box-shadow 260ms var(--ease-out), background-color 200ms var(--ease-out), border-color 200ms var(--ease-out);
+}
+.idea-card:hover, .tile:hover, .choice:hover, .noticed-row:hover { transform: translateY(-2px); box-shadow: var(--glass-highlight), var(--glass-shadow-lifted); }
+.idea-card:active, .choice:active { transform: translateY(0) scale(0.99); }
+.idea-card .glyph, .tile .glyph { transition: transform 360ms var(--spring); }
+.idea-card:hover .glyph, .tile:hover .glyph { transform: rotate(-6deg) scale(1.07); }
+
+/* Buttons: a glint sweeps across on hover, and they give a little when pressed. */
+.btn { overflow: hidden; }
+.btn::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, var(--shine) 50%, transparent 70%);
+  transform: translateX(-130%); transition: transform 0s;
+}
+.btn:hover::before { transform: translateX(130%); transition: transform 750ms var(--ease-out); }
+.btn--ghost::before { display: none; }
+.btn:active { transform: scale(0.96); }
+.btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.4), inset 0 -1px 0 oklch(20% 0.05 152 / 0.25), 0 10px 26px var(--color-accent-soft);
+}
+.btn--primary:active { transform: translateY(0) scale(0.96); }
+.chip { transition: transform 220ms var(--spring), background-color 160ms var(--ease-out); }
+button.chip:hover { transform: translateY(-1px); }
+button.chip:active { transform: scale(0.95); }
+
+/* The switch knob stretches while you press it. */
+.switch::after { transition: transform 320ms var(--spring), width 180ms var(--ease-out); }
+.switch:active::after { width: 28px; }
+.switch[aria-checked="true"]:active::after { transform: translateX(14px); }
+
+/* Text fields glow softly while you type. */
+.ask .input:focus { box-shadow: 0 0 0 4px var(--color-accent-soft), 0 10px 30px var(--color-accent-soft); }
+
+/* Finished steps pop and draw their own checkmark. */
+.progress-step.done i { animation: pop 420ms var(--spring) both; }
+.progress-step.done i svg path,
+.progress-step.done i svg polyline { stroke-dasharray: 26; stroke-dashoffset: 26; animation: draw 420ms 120ms var(--ease-out) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { from { transform: scale(0.6); } to { transform: scale(1); } }
+
+/* Session dots fill in one by one. */
+.dots i.on { animation: pop 380ms var(--spring) both; animation-delay: calc(var(--d, 0) * 45ms); }
+
+/* Toasts spring in from the side. */
+.toast { animation: toast-in 520ms var(--spring) both; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(28px) scale(0.96); } }
+
+/* A newly added app glows a couple of times. */
+.tile.is-new { animation: glow 1.4s var(--ease-in-out) 2; }
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 0 1px var(--color-accent), var(--glass-highlight), var(--glass-shadow); }
+  50% { box-shadow: 0 0 0 4px var(--color-accent-soft), 0 0 36px var(--color-accent-soft), var(--glass-highlight), var(--glass-shadow); }
+}
+
+/* While learning is on, a small dot breathes next to it. */
+.learning-card[data-on="true"] span { display: inline-flex; align-items: center; gap: 6px; }
+.learning-card[data-on="true"] span::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-accent); animation: breathe 2.4s var(--ease-in-out) infinite;
+}
+@keyframes breathe { 0%, 100% { box-shadow: 0 0 0 0 var(--color-accent-soft); } 50% { box-shadow: 0 0 0 5px transparent; } }
+
+/* Dialogs settle in with a little spring. */
+.dialog { animation: dialog-in 380ms var(--spring) both; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } }
+
+/* Theme picker */
+.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--space-sm); padding: var(--space-xs) 0 var(--space-md); }
+.theme-card {
+  display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-xs); text-align: left; cursor: pointer;
+  border-radius: var(--radius-lg); border: 1px solid var(--glass-edge); background: var(--glass-soft);
+  transition: transform 260ms var(--spring), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+}
+.theme-card:hover { transform: translateY(-2px); }
+.theme-card:active { transform: scale(0.97); }
+.theme-card[aria-checked="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-soft); }
+.theme-card span { font-weight: 600; font-size: var(--text-sm); padding: 0 var(--space-2xs) var(--space-2xs); }
+.theme-swatch { height: 64px; border-radius: var(--radius-md); position: relative; overflow: hidden; border: 1px solid oklch(100% 0 0 / 0.2); }
+.theme-swatch i { position: absolute; left: 10px; right: 30%; height: 9px; border-radius: 5px; background: oklch(100% 0 0 / 0.55); }
+.theme-swatch i:first-child { top: 12px; }
+.theme-swatch i:nth-child(2) { top: 28px; right: 50%; }
+.theme-swatch b { position: absolute; right: 10px; bottom: 10px; width: 22px; height: 22px; border-radius: 50%; }
+.swatch-light { background: radial-gradient(80% 90% at 0% 0%, oklch(86% 0.08 150), transparent), oklch(96% 0.01 85); }
+.swatch-light b { background: oklch(47% 0.11 152); }
+.swatch-dark { background: radial-gradient(80% 90% at 0% 0%, oklch(40% 0.1 150), transparent), oklch(22% 0.01 70); }
+.swatch-dark i { background: oklch(100% 0 0 / 0.18); }
+.swatch-dark b { background: oklch(70% 0.13 152); }
+.swatch-ocean { background: radial-gradient(80% 90% at 0% 0%, oklch(84% 0.08 220), transparent), oklch(96% 0.012 230); }
+.swatch-ocean b { background: oklch(50% 0.12 240); }
+.swatch-midnight { background: radial-gradient(80% 90% at 0% 0%, oklch(40% 0.13 290), transparent), oklch(20% 0.02 280); }
+.swatch-midnight i { background: oklch(100% 0 0 / 0.18); }
+.swatch-midnight b { background: oklch(70% 0.14 290); }
+.swatch-system { background: linear-gradient(135deg, oklch(96% 0.01 85) 50%, oklch(22% 0.01 70) 50%); }
+.swatch-system b { background: linear-gradient(135deg, oklch(47% 0.11 152) 50%, oklch(70% 0.13 152) 50%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-pill, .idea-card, .tile, .choice, .chip, .theme-card, .switch::after { transition-duration: 120ms !important; }
+  .idea-card:hover, .tile:hover, .choice:hover, .noticed-row:hover, .theme-card:hover, button.chip:hover, .btn--primary:hover { transform: none; }
+  .btn:hover::before { transition: none; }
+  .learning-card[data-on="true"] span::before { animation: none; }
+}

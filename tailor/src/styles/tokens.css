@@ -1,0 +1,209 @@
+/* Tailor tokens · liquid glass over Windows 11 Mica · native type (Segoe UI Variable) · accent: moss */
+
+:root {
+  /* ink and solid fallbacks */
+  --color-paper: oklch(97.6% 0.006 85);
+  --color-paper-2: oklch(95.2% 0.009 85);
+  --color-paper-3: oklch(92.6% 0.011 85);
+  --color-surface: oklch(99.6% 0.002 85);
+  --color-rule: oklch(30% 0.02 70 / 0.12);
+  --color-rule-strong: oklch(30% 0.02 70 / 0.22);
+  --color-muted: oklch(42% 0.014 75);
+  --color-ink-2: oklch(31% 0.014 70);
+  --color-ink: oklch(19% 0.014 65);
+
+  --color-accent: oklch(47% 0.11 152);
+  --color-accent-strong: oklch(40% 0.105 152);
+  --color-accent-bright: oklch(58% 0.12 150);
+  --color-accent-soft: oklch(92% 0.045 150 / 0.7);
+  --color-accent-ink: oklch(99% 0.006 150);
+  --color-focus: oklch(50% 0.13 152);
+
+  --color-danger: oklch(50% 0.17 28);
+  --color-danger-soft: oklch(94% 0.035 30 / 0.75);
+  --color-warn: oklch(46% 0.11 65);
+  --color-warn-soft: oklch(94% 0.05 85 / 0.8);
+
+  /* glass */
+  --window-wash: oklch(97% 0.01 85 / 0.5);
+  --ambient-a: oklch(86% 0.08 150 / 0.55);
+  --ambient-b: oklch(87% 0.06 225 / 0.5);
+  --ambient-c: oklch(90% 0.05 70 / 0.45);
+  --glass: oklch(99.5% 0.004 85 / 0.52);
+  --glass-strong: oklch(99.5% 0.004 85 / 0.74);
+  --glass-soft: oklch(99.5% 0.004 85 / 0.3);
+  --glass-hover: oklch(99.5% 0.004 85 / 0.68);
+  --glass-edge: oklch(100% 0 0 / 0.7);
+  --glass-edge-dim: oklch(100% 0 0 / 0.4);
+  --glass-blur: blur(24px) saturate(175%);
+  --glass-blur-strong: blur(40px) saturate(190%);
+  --glass-sheen: linear-gradient(180deg, oklch(100% 0 0 / 0.5), oklch(100% 0 0 / 0) 45%);
+  --glass-highlight: inset 0 1px 0 oklch(100% 0 0 / 0.85), inset 0 -1px 0 oklch(100% 0 0 / 0.2);
+  --glass-shadow: 0 1px 2px oklch(25% 0.03 70 / 0.05), 0 10px 30px oklch(25% 0.03 70 / 0.1);
+  --glass-shadow-lifted: 0 2px 4px oklch(25% 0.03 70 / 0.06), 0 18px 48px oklch(25% 0.03 70 / 0.16);
+
+  /* app icon colours (match the generated-app kit) */
+  --glyph-moss: oklch(47% 0.09 150);
+  --glyph-moss-soft: oklch(93.5% 0.03 150 / 0.85);
+  --glyph-ink: oklch(36% 0.06 260);
+  --glyph-ink-soft: oklch(93.5% 0.018 260 / 0.85);
+  --glyph-clay: oklch(53% 0.13 40);
+  --glyph-clay-soft: oklch(94% 0.03 40 / 0.85);
+  --glyph-tide: oklch(50% 0.09 220);
+  --glyph-tide-soft: oklch(94% 0.024 220 / 0.85);
+  --glyph-plum: oklch(45% 0.11 340);
+  --glyph-plum-soft: oklch(94% 0.024 340 / 0.85);
+  --glyph-ochre: oklch(56% 0.12 75);
+  --glyph-ochre-soft: oklch(94.5% 0.04 85 / 0.85);
+
+  --scrim: oklch(20% 0.012 65 / 0.28);
+  --titlebar-close: oklch(56% 0.2 27);
+
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, "Helvetica Neue", sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", -apple-system, "Helvetica Neue", sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.625rem;
+  --text-3xl: 2rem;
+
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 200ms;
+  --dur-long: 360ms;
+
+  --titlebar-height: 40px;
+  --rail-width: 228px;
+}
+
+/* Overlays and edges that flip between light and dark themes. */
+:root {
+  --tint-1: oklch(30% 0.02 70 / 0.08);
+  --tint-2: oklch(30% 0.02 70 / 0.16);
+  --surface-hover: oklch(100% 0 0 / 0.86);
+  --input-focus-bg: oklch(100% 0 0 / 0.9);
+  --edge-bright: oklch(100% 0 0 / 0.6);
+  --shine: oklch(100% 0 0 / 0.4);
+  --brand-from: oklch(56% 0.12 150 / 0.9);
+  --brand-to: oklch(40% 0.1 165 / 0.94);
+  --brand-ink: oklch(99% 0.006 150);
+}
+
+/* ── Graphite: dark glass ───────────────────────────────── */
+html[data-theme="dark"], html[data-theme="midnight"] {
+  --color-paper: oklch(20% 0.01 70);
+  --color-paper-2: oklch(24% 0.01 70);
+  --color-paper-3: oklch(28% 0.01 70);
+  --color-surface: oklch(23% 0.01 70);
+  --color-rule: oklch(100% 0 0 / 0.09);
+  --color-rule-strong: oklch(100% 0 0 / 0.18);
+  --color-muted: oklch(72% 0.012 80);
+  --color-ink-2: oklch(84% 0.01 80);
+  --color-ink: oklch(96% 0.006 85);
+
+  --color-accent: oklch(66% 0.13 152);
+  --color-accent-strong: oklch(78% 0.12 152);
+  --color-accent-bright: oklch(74% 0.14 150);
+  --color-accent-soft: oklch(48% 0.09 152 / 0.32);
+  --color-accent-ink: oklch(16% 0.03 152);
+  --color-focus: oklch(74% 0.13 152);
+  --color-danger: oklch(72% 0.15 25);
+  --color-danger-soft: oklch(45% 0.12 25 / 0.32);
+  --color-warn: oklch(83% 0.12 80);
+  --color-warn-soft: oklch(50% 0.09 75 / 0.32);
+
+  --window-wash: oklch(17% 0.01 70 / 0.62);
+  --ambient-a: oklch(42% 0.11 150 / 0.4);
+  --ambient-b: oklch(40% 0.09 235 / 0.38);
+  --ambient-c: oklch(38% 0.07 60 / 0.28);
+  --glass: oklch(28% 0.01 70 / 0.48);
+  --glass-strong: oklch(31% 0.01 70 / 0.72);
+  --glass-soft: oklch(26% 0.01 70 / 0.34);
+  --glass-hover: oklch(35% 0.01 70 / 0.62);
+  --glass-edge: oklch(100% 0 0 / 0.13);
+  --glass-edge-dim: oklch(100% 0 0 / 0.07);
+  --glass-sheen: linear-gradient(180deg, oklch(100% 0 0 / 0.07), oklch(100% 0 0 / 0) 45%);
+  --glass-highlight: inset 0 1px 0 oklch(100% 0 0 / 0.12), inset 0 -1px 0 oklch(0% 0 0 / 0.25);
+  --glass-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 10px 30px oklch(0% 0 0 / 0.35);
+  --glass-shadow-lifted: 0 2px 4px oklch(0% 0 0 / 0.35), 0 18px 48px oklch(0% 0 0 / 0.45);
+
+  --glyph-moss-soft: oklch(40% 0.07 150 / 0.55);
+  --glyph-ink-soft: oklch(40% 0.05 260 / 0.55);
+  --glyph-clay-soft: oklch(42% 0.08 40 / 0.55);
+  --glyph-tide-soft: oklch(42% 0.06 220 / 0.55);
+  --glyph-plum-soft: oklch(40% 0.07 340 / 0.55);
+  --glyph-ochre-soft: oklch(45% 0.07 80 / 0.55);
+  --glyph-moss: oklch(80% 0.11 150);
+  --glyph-ink: oklch(82% 0.06 260);
+  --glyph-clay: oklch(80% 0.11 45);
+  --glyph-tide: oklch(80% 0.09 220);
+  --glyph-plum: oklch(80% 0.09 340);
+  --glyph-ochre: oklch(85% 0.11 80);
+
+  --tint-1: oklch(100% 0 0 / 0.08);
+  --tint-2: oklch(100% 0 0 / 0.15);
+  --surface-hover: oklch(40% 0.01 70 / 0.78);
+  --input-focus-bg: oklch(22% 0.01 70 / 0.9);
+  --edge-bright: oklch(100% 0 0 / 0.16);
+  --shine: oklch(100% 0 0 / 0.14);
+  --scrim: oklch(0% 0 0 / 0.5);
+  --brand-from: oklch(42% 0.1 152 / 0.85);
+  --brand-to: oklch(28% 0.07 165 / 0.9);
+  --brand-ink: oklch(97% 0.01 150);
+}
+
+/* ── Ocean: light glass, sea-blue accent ────────────────── */
+html[data-theme="ocean"] {
+  --color-accent: oklch(50% 0.12 240);
+  --color-accent-strong: oklch(42% 0.12 245);
+  --color-accent-bright: oklch(62% 0.13 230);
+  --color-accent-soft: oklch(92% 0.04 230 / 0.75);
+  --color-focus: oklch(52% 0.14 240);
+  --window-wash: oklch(97% 0.012 230 / 0.5);
+  --ambient-a: oklch(86% 0.07 220 / 0.55);
+  --ambient-b: oklch(88% 0.06 190 / 0.5);
+  --ambient-c: oklch(90% 0.05 260 / 0.45);
+  --brand-from: oklch(58% 0.13 230 / 0.9);
+  --brand-to: oklch(42% 0.12 250 / 0.94);
+}
+
+/* ── Midnight: dark glass, violet accent ────────────────── */
+html[data-theme="midnight"] {
+  --color-accent: oklch(68% 0.14 290);
+  --color-accent-strong: oklch(80% 0.11 290);
+  --color-accent-bright: oklch(74% 0.15 285);
+  --color-accent-soft: oklch(48% 0.12 290 / 0.32);
+  --color-accent-ink: oklch(16% 0.04 290);
+  --color-focus: oklch(76% 0.14 290);
+  --window-wash: oklch(16% 0.02 280 / 0.64);
+  --ambient-a: oklch(40% 0.13 290 / 0.42);
+  --ambient-b: oklch(38% 0.11 250 / 0.4);
+  --ambient-c: oklch(36% 0.1 330 / 0.3);
+  --glass: oklch(27% 0.02 280 / 0.5);
+  --glass-strong: oklch(30% 0.025 280 / 0.72);
+  --glass-soft: oklch(25% 0.02 280 / 0.34);
+  --glass-hover: oklch(34% 0.025 280 / 0.62);
+  --brand-from: oklch(45% 0.14 290 / 0.85);
+  --brand-to: oklch(28% 0.1 270 / 0.9);
+}

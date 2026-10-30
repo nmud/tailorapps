@@ -1,0 +1,26 @@
+:root {
+  --paper: oklch(97.2% 0.008 85);
+  --ink: oklch(21% 0.012 65);
+  --muted: oklch(50.5% 0.013 75);
+  --rule: oklch(89% 0.011 85);
+  --accent: oklch(46% 0.095 152);
+  --warn: oklch(60% 0.13 70);
+}
+body {
+  width: 300px;
+  margin: 0;
+  padding: 14px 16px;
+  font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.name { font: 600 20px/1.2 "Segoe UI Variable Display", "Segoe UI", sans-serif; }
+.status { font-size: 12px; font-weight: 600; color: var(--muted); }
+.status.on { color: var(--accent); }
+.status.off { color: var(--warn); }
+.detail { margin: 0 0 10px; color: var(--muted); }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; margin: 0; border-top: 1px solid var(--rule); }
+.row input { accent-color: var(--accent); width: 16px; height: 16px; }
+.small { font-size: 12px; color: var(--muted); }
+.note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }

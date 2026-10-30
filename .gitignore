@@ -1,0 +1,7 @@
+# Design tool notes
+**/.hallmark/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
