@@ -4,7 +4,7 @@
 
 **[Download for Windows](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe)** · [Website](https://nmud.github.io/tailorapps/) (source in `website/`)
 
-**It notices pain points before you.** Tailor is a Windows app that notices the things you do over and over (with your permission), suggests small apps that make them easier, builds them with Meta's Muse models, tests them the way you'd use them, and installs them as real apps on your computer.
+**You can't prompt what you don't know.** Tailor is a Windows app that notices the things you do over and over (with your permission), suggests small apps that make them easier, builds them with Meta's Muse models, tests them the way you'd use them, and installs them as real apps on your computer.
 
 You don't need to know what software you need, or anything about software at all. Tailor explains every suggestion with something it actually counted:
 
