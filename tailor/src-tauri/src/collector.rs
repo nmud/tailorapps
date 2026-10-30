@@ -9,6 +9,7 @@ use serde_json::json;
 use tauri::AppHandle;
 
 use crate::db::Event;
+use crate::privacy::BROWSERS;
 use crate::{Shared, now_ms, record_events};
 
 const SAMPLE_MS: u64 = 2_000;
@@ -24,7 +25,6 @@ const IGNORED: &[&str] = &[
     "startmenuexperiencehost", "applicationframehost", "lockapp", "textinputhost",
     "systemsettings", "taskmgr", "msedgewebview2",
 ];
-const BROWSERS: &[&str] = &["chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc"];
 const BROWSER_SUFFIXES: &[&str] = &[
     " - Google Chrome", " - Microsoft\u{200b} Edge", " - Microsoft Edge", " — Mozilla Firefox",
     " - Mozilla Firefox", " - Brave", " - Opera", " - Vivaldi",
@@ -77,6 +77,8 @@ fn run(state: Shared, app: AppHandle) {
             win::foreground().filter(|(a, _)| {
                 !IGNORED.contains(&a.as_str()) && !(extension_live && BROWSERS.contains(&a.as_str()))
             })
+            // Browser page titles are dropped by the privacy filter, so one browser visit is one segment.
+            .map(|(a, t)| if BROWSERS.contains(&a.as_str()) { (a, String::new()) } else { (a, t) })
         } else {
             None
         };
@@ -145,9 +147,14 @@ fn run(state: Shared, app: AppHandle) {
         // Which windows are open right now (kept in memory for apps the person allowed to see it).
         if now - last_live >= LIVE_WINDOWS_MS {
             last_live = now;
+            // Same privacy filter as recorded activity: no password managers or denied apps, no
+            // chat and mail titles, no browser page titles, emails and numbers scrubbed.
+            let cfg = state.learning.read().unwrap().clone();
             let windows: Vec<(String, String)> = win::open_windows()
                 .into_iter()
                 .filter(|(a, _)| !IGNORED.contains(&a.as_str()))
+                .filter_map(|(a, t)| crate::privacy::live_window(&a, &t, &cfg))
+                .map(|(a, t)| (a, t.unwrap_or_default()))
                 .collect();
             let live: Vec<serde_json::Value> = windows.iter().map(|(a, t)| json!({ "app": a, "title": t })).collect();
             *state.live_windows.write().unwrap() = (now, live);

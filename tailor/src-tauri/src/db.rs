@@ -179,3 +179,32 @@ pub fn docs_delete(conn: &Connection, collection: &str, id: &str) -> rusqlite::R
         params![collection, id],
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retention_forgets_old_activity_and_clearing_removes_it() {
+        let path = std::env::temp_dir().join(format!("tailor-test-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let conn = open(&path).unwrap();
+        let day = 86_400_000;
+        let now = 100 * day;
+        let make = |ts: i64, source: &str| Event { ts, source: source.into(), kind: "focus".into(), app: Some("code".into()), ..Default::default() };
+        insert_events(&conn, &[make(now - 40 * day, "desktop"), make(now - 31 * day, "extension"), make(now - 29 * day, "desktop"), make(now, "demo")]).unwrap();
+
+        // 30-day retention: the two older events go, the newer two stay.
+        assert_eq!(delete_events_before(&conn, now - 30 * day).unwrap(), 2);
+        let left: i64 = conn.query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0)).unwrap();
+        assert_eq!(left, 2);
+
+        // "Remove the sample week" removes only sample data; "Delete everything" removes the rest.
+        assert_eq!(clear_events(&conn, Some("demo")).unwrap(), 1);
+        assert_eq!(clear_events(&conn, None).unwrap(), 1);
+        let left: i64 = conn.query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0)).unwrap();
+        assert_eq!(left, 0);
+        drop(conn);
+        let _ = std::fs::remove_file(&path);
+    }
+}

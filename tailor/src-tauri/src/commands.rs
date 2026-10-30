@@ -115,6 +115,7 @@ pub fn learning_set(app: AppHandle, state: State<'_, Shared>, cfg: LearningCfg) 
         db::kv_set(&conn, "learning", &serde_json::to_value(&cfg).map_err(err)?).map_err(err)?;
     }
     *state.learning.write().unwrap() = cfg.clone();
+    crate::purge_old(&state);
     // Switching a source off forgets its live snapshot straight away.
     if !(cfg.enabled && cfg.extension) {
         *state.live_tabs.write().unwrap() = (0, vec![]);

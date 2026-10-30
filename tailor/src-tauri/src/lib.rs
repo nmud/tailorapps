@@ -53,7 +53,7 @@ pub fn record_events(state: &AppState, app: &tauri::AppHandle, events: Vec<db::E
     let cfg = state.learning.read().unwrap().clone();
     let clean: Vec<db::Event> = events
         .into_iter()
-        .filter_map(|e| privacy::sanitize(e, &cfg))
+        .filter_map(|e| privacy::admit(e, &cfg))
         .collect();
     if clean.is_empty() {
         return 0;
@@ -66,6 +66,16 @@ pub fn record_events(state: &AppState, app: &tauri::AppHandle, events: Vec<db::E
         let _ = app.emit("activity", inserted);
     }
     inserted
+}
+
+/// Forget activity older than the person's chosen retention. Runs hourly, because Tailor can
+/// stay open in the tray for weeks, and whenever the setting changes.
+pub fn purge_old(state: &AppState) {
+    let days = state.learning.read().unwrap().retention_days;
+    if days > 0 {
+        let cutoff = now_ms() - days as i64 * 86_400_000;
+        let _ = db::delete_events_before(&state.db.lock().unwrap(), cutoff);
+    }
 }
 
 /// Bring Tailor's main window back from the tray.
@@ -137,6 +147,13 @@ pub fn run() {
             tray::build(&handle, state.learning.read().unwrap().enabled)?;
             tauri::async_runtime::spawn(ingest::serve(state.clone(), handle.clone()));
             tauri::async_runtime::spawn(appserver::serve(state.clone(), handle.clone()));
+            let purge = state.clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                    purge_old(&purge);
+                }
+            });
             collector::start(state, handle);
             if !background {
                 show_main(app.handle());
