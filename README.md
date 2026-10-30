@@ -69,6 +69,15 @@ npx tauri build          # installer: src-tauri/target/release/bundle/nsis/Tailo
 
 `chrome://extensions` (or `edge://extensions`) → Developer mode → Load unpacked → the `extension/` folder. Tailor's onboarding walks through this and shows when it's connected.
 
+### 4. Releasing an update
+
+Installing a newer version updates Tailor in place: same folder, one entry in Installed apps, and everyone's data, sign-in and apps kept. To release one:
+
+1. Bump  in  (the installer reads it from there), e.g.  → .
+2.  and share the new .
+
+Never change  () or  () in : the installer uses them to find the existing install, and the app ID is where everyone's data lives. Changing either installs a second copy instead of updating.
+
 ## 3-minute demo
 
 1. **Sign in** (a new account takes seconds) and choose what Tailor may learn from. Turning everything off asks you to confirm.
