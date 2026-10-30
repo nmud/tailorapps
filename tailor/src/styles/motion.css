@@ -164,6 +164,6 @@ button.chip:active { transform: scale(0.95); }
 .idea-card--thinking i { display: block; height: 12px; border-radius: 6px; background: var(--tint-2); }
 .idea-card--thinking i:first-child { width: 55%; }
 .idea-card--thinking i:last-child { width: 85%; }
-.idea-card--thinking { background-image: linear-gradient(100deg, transparent 30%, var(--shine) 50%, transparent 70%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
-@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.idea-card--thinking { background-image: linear-gradient(100deg, transparent 30%, var(--shine) 50%, transparent 70%); background-size: 220% 100%; background-repeat: no-repeat; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { from { background-position: 130% 0; } to { background-position: -130% 0; } }
 @media (prefers-reduced-motion: reduce) { .idea-card--thinking { animation: none; } }

@@ -187,7 +187,7 @@ p { text-wrap: pretty; }
 .slot, .seen {
   position: relative;
   border-radius: var(--radius-lg);
-  background: var(--tint-1) linear-gradient(100deg, transparent 30%, var(--shine) 50%, transparent 70%) 0 0 / 220% 100%;
+  background: var(--tint-1) linear-gradient(100deg, transparent 30%, var(--shine) 50%, transparent 70%) no-repeat 0 0 / 220% 100%;
   animation: shimmer 1.4s linear infinite;
 }
 .slot { height: 68px; }
@@ -211,7 +211,7 @@ p { text-wrap: pretty; }
 .seen:nth-child(2) > span { animation: seen-2 11s var(--ease-out) infinite; }
 @keyframes seen-1 { 0%, 5% { opacity: 0; transform: translateY(6px); } 11%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: none; } }
 @keyframes seen-2 { 0%, 12% { opacity: 0; transform: translateY(6px); } 18%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: none; } }
-@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+@keyframes shimmer { from { background-position: 130% 0; } to { background-position: -130% 0; } }
 .idea {
   position: absolute;
   inset: 0;
