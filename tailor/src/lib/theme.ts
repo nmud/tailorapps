@@ -26,13 +26,18 @@ export function isDark(name: ThemeName): boolean {
 
 let current: ThemeName = 'light';
 let lastEffective = '';
+let latest = 0;
 
 /** Apply a theme to Tailor's window, its glass material, and the apps it made. */
 export async function applyTheme(name: ThemeName) {
   current = name;
+  const call = ++latest;
   const win = getCurrentWindow();
   // Let the window follow Windows first, so "Match Windows" reads the real system setting.
   if (name === 'system') await win.setTheme(null).catch(() => {});
+  // At startup the default ("Match Windows") and the saved theme are applied back to back; the
+  // older call must not finish last and paint over the saved one.
+  if (call !== latest) return;
   const resolved = resolveTheme(name);
   const dark = isDark(name);
   const root = document.documentElement;
@@ -42,6 +47,7 @@ export async function applyTheme(name: ThemeName) {
   requestAnimationFrame(() => setTimeout(() => root.classList.remove('theme-switching'), 400));
   // The JS enum lacks the explicit light/dark Mica variants; the Rust side supports them.
   await win.setEffects({ effects: [(dark ? 'micaDark' : 'micaLight') as Effect] }).catch(() => {});
+  if (call !== latest) return;
   if (name !== 'system') await win.setTheme(dark ? 'dark' : 'light').catch(() => {});
   const effective = dark ? 'dark' : 'light';
   if (effective !== lastEffective) {
