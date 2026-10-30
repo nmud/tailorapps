@@ -18,7 +18,9 @@ const MAX_BODY_CHARS = 1_500_000;
 const AGENTS: Record<string, { model: string; reasoning: string }> = {
   // Frequent, structured summarizing of counted activity: fast and cheap.
   observer: { model: Deno.env.get('MUSE_MODEL_OBSERVER') ?? 'muse-spark-1.3', reasoning: 'low' },
-  // Ideation from patterns and feedback: rare, so use the most capable model.
+  // Quick idea cards the person is waiting on: fast model, light reasoning (~10s for three).
+  ideas: { model: Deno.env.get('MUSE_MODEL_IDEAS') ?? 'muse-spark-1.3', reasoning: 'low' },
+  // The full plan for the one idea being built: the most capable model.
   designer: { model: Deno.env.get('MUSE_MODEL_DESIGNER') ?? 'muse-wonder-1.0', reasoning: 'high' },
   // Writing and fixing software: Muse Wonder is Meta's model for complex engineering.
   builder: { model: Deno.env.get('MUSE_MODEL_BUILDER') ?? 'muse-wonder-1.0', reasoning: 'high' },

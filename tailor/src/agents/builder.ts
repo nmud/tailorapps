@@ -7,6 +7,7 @@ import { getState, recordFeedback, save, setState, toast } from '../lib/store';
 import type { AppRecord, BuildJob, JobLogLine, JobPhase, SourceFile, Suggestion, TestReport } from '../lib/types';
 import { testApp } from './tester';
 import { makeAppIcon } from '../lib/appIcon';
+import { planApp } from './designer';
 import { errorText, uniqueSlug } from '../lib/util';
 
 const MAX_BUILD_FIXES = 3;
@@ -335,6 +336,19 @@ async function saveTest(appId: string, report: TestReport) {
   if (current) await save.app({ ...current, lastTest: report });
 }
 
+/** Ideas arrive as quick sketches; Muse Wonder writes the full plan for the one being made. */
+async function ensurePlan(app: AppRecord): Promise<AppRecord> {
+  const s = getState().suggestions.find((x) => x.id === app.suggestionId);
+  if (!s || s.specReady !== false) return app;
+  log('Planning the app in detail');
+  const [spec] = await Promise.all([planApp(s), ensureWorkspace()]);
+  const planned = { ...app, spec, updatedAt: Date.now() };
+  await save.app(planned);
+  await save.suggestion({ ...s, spec, specReady: true, updatedAt: Date.now() });
+  log('Plan ready', 'ok');
+  return planned;
+}
+
 async function run(appId: string, work: (app: AppRecord) => Promise<void>) {
   const app = getState().apps.find((a) => a.id === appId);
   if (!app) return;
@@ -397,7 +411,8 @@ export async function startBuild(s: Suggestion) {
     job: { appId: id, phase: 'preparing', log: [], streamedChars: 0, previewNonce: 0, busy: true },
   });
 
-  await run(id, async (current) => {
+  await run(id, async (sketched) => {
+    const current = await ensurePlan(sketched);
     log("Building with Muse. The Builder sees only this app's description, never your activity.");
     await ensureWorkspace();
     await api.appCreate(id, manifest(current));
@@ -445,7 +460,8 @@ export async function retryBuild(appId: string) {
   const app = getState().apps.find((a) => a.id === appId);
   if (!app) return;
   setState({ job: { appId, phase: 'building', log: [], streamedChars: 0, previewNonce: 0, busy: true } });
-  await run(appId, async (current) => {
+  await run(appId, async (sketched) => {
+    const current = await ensurePlan(sketched);
     await ensureWorkspace();
     await api.appCreate(appId, manifest(current));
     const files = await api.appReadFiles(appId);

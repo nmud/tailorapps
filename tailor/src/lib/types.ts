@@ -118,6 +118,8 @@ export interface Suggestion {
   appId?: string;
   edited: boolean;
   demo: boolean;
+  /** false while only a quick sketch exists; the full plan is written when the app is made. */
+  specReady?: boolean;
 }
 
 export interface SourceFile {
@@ -173,7 +175,7 @@ export interface FeedbackEntry {
   patternId?: string;
 }
 
-export type AgentRole = 'observer' | 'designer' | 'builder' | 'tester';
+export type AgentRole = 'observer' | 'ideas' | 'designer' | 'builder' | 'tester';
 
 /** What the Tester agent found when it used the app as its intended person. */
 export interface TestReport {

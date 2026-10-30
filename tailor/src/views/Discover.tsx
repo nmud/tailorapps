@@ -178,6 +178,7 @@ function Detail({ s, patterns }: { s: Suggestion; patterns: Pattern[] }) {
             </ul>
           )}
           {s.builderNotes && <p>Your notes: {s.builderNotes}</p>}
+          {s.specReady === false && <p className="muted">Tailor plans the rest in detail when you make it.</p>}
         </div>
       </details>
 
@@ -326,7 +327,7 @@ export default function Discover() {
             </button>
           )}
         </div>
-        {open.length ? (
+        {open.length || designer.running ? (
           <div className="ideas-grid">
             <div className="idea-list stagger">
               {open.map((s) => (
@@ -338,8 +339,24 @@ export default function Discover() {
                   </div>
                 </button>
               ))}
+              {designer.running &&
+                Array.from({ length: Math.max(1, 3 - (open.length % 3)) }, (_, i) => (
+                  <div key={`thinking-${i}`} className="idea-card idea-card--thinking" aria-hidden="true">
+                    <span className="glyph glyph--md" data-accent="moss" />
+                    <div>
+                      <i />
+                      <i />
+                    </div>
+                  </div>
+                ))}
             </div>
-            {selected && <Detail s={selected} patterns={patterns} key={selected.id} />}
+            {selected ? (
+              <Detail s={selected} patterns={patterns} key={selected.id} />
+            ) : (
+              <div className="panel detail idea-card--thinking" aria-live="polite">
+                <p className="muted">Thinking of ideas for you…</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="empty">

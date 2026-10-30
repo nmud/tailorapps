@@ -48,7 +48,8 @@ What Tailor uses (set in the backend, `backend/supabase/functions/tailor/index.t
 | Agent | Job | Model |
 | --- | --- | --- |
 | Observer | Turns counted activity signals into patterns | `muse-spark-1.3`, low reasoning (frequent, structured) |
-| Designer | Ideation: suggests apps from patterns and feedback | `muse-wonder-1.0`, high reasoning (the most capable model, used rarely) |
+| Designer (ideas) | Quick idea cards from patterns and feedback, streamed one by one so the person isn't left waiting | `muse-spark-1.3`, low reasoning (first idea in ~7 s, all three in ~10 s; Wonder took ~36 s) |
+| Designer (plan) | The full buildable plan for the one idea the person makes | `muse-wonder-1.0`, high reasoning (the most capable model, used once per app) |
 | Builder | Writes and fixes the app | `muse-wonder-1.0`, high reasoning |
 | Tester | Uses the finished app as its intended person would, before it ships | `muse-spark-1.3`, medium reasoning (many quick steps) |
 
