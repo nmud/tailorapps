@@ -57,5 +57,7 @@ What Tailor uses (set in the backend, `backend/supabase/functions/tailor/index.t
 ## Credits and billing
 
 - $150 Meta Model API credits per approved participant. Claim by Nov 4, 9 PM ET, using the application email and the numeric `team_id` from the dev.meta.ai URL.
-- A card is required. **Spend Limit alerts do not stop billing.** Tailor's backend caps requests per user per day (`TAILOR_DAILY_LIMIT`, default 300) and across all users per day (`TAILOR_GLOBAL_DAILY_LIMIT`, default 3000), so a public demo can't drain the credits.
+- A card is required. **Spend Limit alerts do not stop billing**, so Tailor's backend stops itself.
+- **Dollar budget (the real cap):** every Muse reply is priced from its token counts (Spark $1.25 in / $4.25 out, Wonder $4 in / $20 out per million tokens; reasoning counts as output). Before each call the backend sets aside the most it could cost and refuses if any budget lacks room, then settles to the real cost. Defaults: **$140 total** (`TAILOR_BUDGET_USD`), $40 a day (`TAILOR_BUDGET_DAY_USD`), $5 per person per day (`TAILOR_BUDGET_USER_DAY_USD`). Spend so far: `select * from spend` in Supabase.
+- Request caps on top: 300 per person a day, 1,000 per network address, 3,000 in all.
 - Support: https://dev.meta.ai/support. Office hours in #office-hours, weekdays 10–11 AM ET.

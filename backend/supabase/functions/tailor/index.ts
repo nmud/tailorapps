@@ -15,6 +15,19 @@ const GLOBAL_DAILY_LIMIT = Number(Deno.env.get('TAILOR_GLOBAL_DAILY_LIMIT') ?? 3
 // Requests from one network address per day, so throwaway accounts can't use up everyone's share.
 const IP_DAILY_LIMIT = Number(Deno.env.get('TAILOR_IP_DAILY_LIMIT') ?? 1000);
 const IP_SIGNUP_LIMIT = Number(Deno.env.get('TAILOR_IP_SIGNUP_LIMIT') ?? 20);
+// Dollars. Meta's spend alerts don't stop billing, so Tailor stops itself before the budget runs out.
+const BUDGET_TOTAL_USD = Number(Deno.env.get('TAILOR_BUDGET_USD') ?? 140);
+const BUDGET_DAY_USD = Number(Deno.env.get('TAILOR_BUDGET_DAY_USD') ?? 40);
+const BUDGET_USER_DAY_USD = Number(Deno.env.get('TAILOR_BUDGET_USER_DAY_USD') ?? 5);
+// Meta's prices in dollars per million tokens, which is millionths of a dollar per token
+// (dev.meta.ai/docs/pricing-rate-limits, October 2026). Reasoning is counted as output.
+const PRICES: Record<string, { input: number; output: number }> = {
+  'muse-spark-1.3': { input: 1.25, output: 4.25 },
+  'muse-wonder-1.0': { input: 4, output: 20 },
+};
+// A model missing from the list is priced like the most expensive one.
+const priceOf = (model: string) => PRICES[model] ?? { input: 4, output: 20 };
+const micros = (usd: number) => Math.round(usd * 1_000_000);
 // The largest request the app sends is a Builder fix with every file of one small app.
 const MAX_BODY_CHARS = 400_000;
 const ROLES = new Set(['system', 'user', 'assistant']);
@@ -44,6 +57,35 @@ function json(body: unknown, status = 200) {
 
 function fail(status: number, code: string, message: string) {
   return json({ error: { code, message } }, status);
+}
+
+interface Usage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+}
+
+/** The token counts in a streamed reply (sent last, because we ask for them with stream_options). */
+async function streamUsage(stream: ReadableStream<Uint8Array>): Promise<Usage | undefined> {
+  const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  let usage: Usage | undefined;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    let nl;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data:') || !line.includes('"usage"')) continue;
+      try {
+        usage = JSON.parse(line.slice(5)).usage ?? usage;
+      } catch {
+        // not JSON
+      }
+    }
+  }
+  return usage;
 }
 
 /** The caller's network address, kept only as a salted hash. */
@@ -131,23 +173,76 @@ async function chat(req: Request) {
 
   const asked = Number(body.max_tokens);
   const maxTokens = Number.isFinite(asked) && asked > 0 ? Math.min(Math.floor(asked), agent.maxTokens) : agent.maxTokens;
+  // Set aside the most this request could cost (three characters a token is a generous count for the
+  // input, plus a full-length reply), and only go ahead if every budget has room for it.
+  const price = priceOf(agent.model);
+  const day = new Date().toISOString().slice(0, 10);
+  const reserved = Math.ceil((raw.length / 3) * price.input + maxTokens * price.output);
+  const { data: room, error: budgetError } = await admin.rpc('tailor_reserve', {
+    p_user: data.user.id,
+    p_day: day,
+    p_micros: reserved,
+    p_total_limit: micros(BUDGET_TOTAL_USD),
+    p_day_limit: micros(BUDGET_DAY_USD),
+    p_user_day_limit: micros(BUDGET_USER_DAY_USD),
+  });
+  if (budgetError) return fail(500, 'usage_failed', 'Something went wrong. Please try again.');
+  if (room === 'total') return fail(429, 'daily_limit', "Tailor's AI is resting for now. Please try again later.");
+  if (room === 'day') return fail(429, 'daily_limit', 'Tailor is very busy today. Please try again tomorrow.');
+  if (room !== 'ok') return fail(429, 'daily_limit', "You've reached today's limit. Please try again tomorrow.");
+
+  // Replace the set-aside amount with the real cost. Failed calls cost nothing; a reply without
+  // token counts keeps the full set-aside amount, so the budget is never undercounted.
+  const settle = (usage: Usage | undefined, ok: boolean) => {
+    const actual = usage
+      ? Math.ceil((usage.prompt_tokens ?? 0) * price.input + (usage.completion_tokens ?? 0) * price.output)
+      : ok
+        ? reserved
+        : 0;
+    return admin.rpc('tailor_settle', { p_user: data.user.id, p_day: day, p_delta: actual - reserved });
+  };
+
   const upstreamBody: Record<string, unknown> = { model: agent.model, messages, max_completion_tokens: maxTokens };
   if (body.reasoning !== false) upstreamBody.reasoning_effort = agent.reasoning;
   if (body.response_format) upstreamBody.response_format = body.response_format;
-  if (body.stream) upstreamBody.stream = true;
+  if (body.stream) {
+    upstreamBody.stream = true;
+    upstreamBody.stream_options = { include_usage: true };
+  }
 
-  const upstream = await fetch(`${MUSE_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(upstreamBody),
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${MUSE_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(upstreamBody),
+    });
+  } catch (e) {
+    await settle(undefined, false);
+    throw e;
+  }
 
   // Pass Muse's response (or its error, so the app can adapt) straight through.
   const contentType = upstream.headers.get('content-type') ?? (body.stream ? 'text/event-stream' : 'application/json');
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: { 'content-type': contentType, 'cache-control': 'no-store' },
-  });
+  const headers = { 'content-type': contentType, 'cache-control': 'no-store' };
+  if (body.stream && upstream.ok && upstream.body) {
+    const [toApp, toMeter] = upstream.body.tee();
+    EdgeRuntime.waitUntil(
+      streamUsage(toMeter)
+        .then((usage) => settle(usage, true))
+        .catch((e) => console.error('settle failed', e))
+    );
+    return new Response(toApp, { status: upstream.status, headers });
+  }
+  const text = await upstream.text();
+  let usage: Usage | undefined;
+  try {
+    usage = JSON.parse(text).usage;
+  } catch {
+    // an error page
+  }
+  await settle(usage, upstream.ok);
+  return new Response(text, { status: upstream.status, headers });
 }
 
 Deno.serve(async (req) => {
