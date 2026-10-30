@@ -190,6 +190,8 @@ button.chip[aria-pressed="true"] { color: var(--color-ink); background-color: va
 .notice { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; padding: var(--space-md); border-radius: var(--radius-lg); }
 .notice > svg { width: 22px; height: 22px; color: var(--color-accent); flex: none; }
 .notice p { flex: 1; min-width: 240px; }
+.notice p strong { font-weight: 600; }
+.notice-progress { display: block; margin-top: var(--space-2xs); color: var(--color-ink-2); font-size: var(--text-sm); }
 .notice-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
 .notice--error { background-color: var(--color-danger-soft); }
 .notice--error > svg, .notice--error p { color: var(--color-danger); }

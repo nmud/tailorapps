@@ -70,6 +70,16 @@ interface ObserverOutput {
   patterns: { signalIds: string[]; title: string; description: string; friction: string; kind: PatternKind; confidence: number }[];
 }
 
+/** Separate stretches of work Tailor needs before it can tell what you repeat. */
+export const SESSIONS_NEEDED = 2;
+
+/** How far learning has got, for people who have just started (sample data not counted). */
+export async function learningProgress(): Promise<{ sessions: number; activeMs: number }> {
+  const events = await api.eventsQuery(Date.now() - WINDOW_MS, { limit: 40_000 });
+  const d = buildDigest(events.filter((e) => e.source !== 'demo'));
+  return { sessions: d.sessions.length, activeMs: d.activeMs };
+}
+
 export async function loadDigest(): Promise<Digest> {
   const events = await api.eventsQuery(Date.now() - WINDOW_MS, { limit: 40_000 });
   return buildDigest(events);
@@ -87,9 +97,9 @@ export async function analyze(opts: { quiet?: boolean } = {}): Promise<void> {
   setState({ observer: { ...st.observer, running: true, phase: 'Looking at your recent activity', error: undefined, note: undefined } });
   try {
     const digest = await loadDigest();
-    if (digest.sessions.length < 2 || digest.signals.length === 0) {
+    if (digest.sessions.length < SESSIONS_NEEDED || digest.signals.length === 0) {
       const note =
-        digest.sessions.length < 2
+        digest.sessions.length < SESSIONS_NEEDED
           ? 'Not enough to go on yet. Keep working as usual and check back later.'
           : 'Nothing repeated stands out yet. Keep working as usual and check back later.';
       setState({ observer: { ...getState().observer, running: false, note, lastRunAt: Date.now() } });

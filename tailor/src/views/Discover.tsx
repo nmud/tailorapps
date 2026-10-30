@@ -1,13 +1,14 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { Check, ChevronRight, Eye, Lightbulb, Lock, Pencil, Undo2, Wifi, WifiOff, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Check, ChevronRight, Eye, Lightbulb, Lock, Pencil, Sprout, Undo2, Wifi, WifiOff, X } from 'lucide-react';
 import { suggest } from '../agents/designer';
-import { analyze, dismissPattern } from '../agents/observer';
+import { analyze, dismissPattern, learningProgress, SESSIONS_NEEDED } from '../agents/observer';
 import { startBuild } from '../agents/builder';
 import { AppGlyph } from '../lib/icons';
 import { friendlyError } from '../lib/llm';
 import { loadDemoSession } from '../lib/demo';
 import { recordFeedback, save, setState, toast, useStore } from '../lib/store';
 import type { FeedName, Pattern, Suggestion } from '../lib/types';
+import { formatDuration } from '../lib/util';
 import { DemoTag, Notice, SessionDots } from '../components/ui';
 
 const EXAMPLES = ['Keep track of what I read', 'Plan my week', 'Less copying and pasting'];
@@ -238,6 +239,13 @@ export default function Discover() {
   const past = useMemo(() => suggestions.filter((s) => s.status !== 'new').sort((a, b) => b.updatedAt - a.updatedAt), [suggestions]);
   const selected = open.find((s) => s.id === selectedId) ?? open[0];
 
+  // People who just turned learning on: say plainly that ideas need a little time, and show progress.
+  const newcomer = learning.enabled && !active.length && !open.length;
+  const [progress, setProgress] = useState<{ sessions: number; activeMs: number } | null>(null);
+  useEffect(() => {
+    if (newcomer) learningProgress().then(setProgress, () => setProgress(null));
+  }, [newcomer, observer.lastRunAt]);
+
   async function onAsk(e?: FormEvent, text = ask) {
     e?.preventDefault();
     await suggest({ ask: text || undefined, origin: 'ask', count: 3 });
@@ -293,6 +301,26 @@ export default function Discover() {
           }
         >
           Turn on learning so Tailor can suggest ideas on its own.
+        </Notice>
+      )}
+      {newcomer && !observer.running && !designer.running && (
+        <Notice
+          icon={<Sprout />}
+          actions={
+            <button className={`btn btn--sm${loadingDemo ? ' is-loading' : ''}`} onClick={sampleWeek}>
+              Try a sample week
+            </button>
+          }
+        >
+          <strong>Tailor is still getting to know you.</strong> Ideas usually start after a day or two of using your computer as
+          normal, and get more personal over the first week. Until then, describe an app above and Tailor will make it.
+          {progress && (
+            <span className="notice-progress">
+              {progress.sessions < SESSIONS_NEEDED
+                ? `So far: ${progress.sessions} of ${SESSIONS_NEEDED} work sessions${progress.activeMs ? ` (${formatDuration(progress.activeMs)})` : ''}. Ideas need at least two separate stretches of work, like a morning and an afternoon.`
+                : `So far: ${progress.sessions} work sessions, ${formatDuration(progress.activeMs)}. Tailor looks for things you repeat every half hour or so.`}
+            </span>
+          )}
         </Notice>
       )}
       {(observer.running || designer.running) && (
