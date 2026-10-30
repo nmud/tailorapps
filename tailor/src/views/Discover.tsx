@@ -8,7 +8,6 @@ import { friendlyError } from '../lib/llm';
 import { loadDemoSession } from '../lib/demo';
 import { recordFeedback, save, setState, toast, useStore } from '../lib/store';
 import type { FeedName, Pattern, Suggestion } from '../lib/types';
-import { formatDuration } from '../lib/util';
 import { DemoTag, Notice, SessionDots } from '../components/ui';
 
 const EXAMPLES = ['Keep track of what I read', 'Plan my week', 'Less copying and pasting'];
@@ -312,13 +311,10 @@ export default function Discover() {
             </button>
           }
         >
-          <strong>Tailor is still getting to know you.</strong> Ideas usually start after a day or two of using your computer as
-          normal, and get more personal over the first week. Until then, describe an app above and Tailor will make it.
-          {progress && (
+          <strong>Still getting to know you.</strong> Ideas show up after a day or two of normal use.
+          {progress && progress.sessions < SESSIONS_NEEDED && (
             <span className="notice-progress">
-              {progress.sessions < SESSIONS_NEEDED
-                ? `So far: ${progress.sessions} of ${SESSIONS_NEEDED} work sessions${progress.activeMs ? ` (${formatDuration(progress.activeMs)})` : ''}. Ideas need at least two separate stretches of work, like a morning and an afternoon.`
-                : `So far: ${progress.sessions} work sessions, ${formatDuration(progress.activeMs)}. Tailor looks for things you repeat every half hour or so.`}
+              <SessionDots sessions={progress.sessions} total={SESSIONS_NEEDED} /> {progress.sessions} of {SESSIONS_NEEDED} work sessions
             </span>
           )}
         </Notice>
