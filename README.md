@@ -73,10 +73,10 @@ npx tauri build          # installer: src-tauri/target/release/bundle/nsis/Tailo
 
 Installing a newer version updates Tailor in place: same folder, one entry in Installed apps, and everyone's data, sign-in and apps kept. To release one:
 
-1. Bump  in  (the installer reads it from there), e.g.  → .
-2.  and share the new .
+1. Bump `version` in `tailor/package.json` (the installer reads it from there), e.g. `0.1.0` → `0.1.1`.
+2. Run `npx tauri build` in `tailor/` and share the new `Tailor_<version>_x64-setup.exe`.
 
-Never change  () or  () in : the installer uses them to find the existing install, and the app ID is where everyone's data lives. Changing either installs a second copy instead of updating.
+Never change `identifier` (`com.tailor.desktop`) or `productName` (`Tailor`) in `tauri.conf.json`: the installer uses them to find the existing install, and the app ID is where everyone's data lives. Changing either installs a second copy instead of updating.
 
 ## 3-minute demo
 
