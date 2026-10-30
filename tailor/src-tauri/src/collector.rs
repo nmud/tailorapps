@@ -1,6 +1,9 @@
 //! Desktop activity collector. Samples the foreground window every two seconds and
 //! records focus segments (app + window title + duration). It also notices *that* the
-//! clipboard changed, never *what* was copied. Idle time is not counted.
+//! clipboard changed, never *what* was copied. Time stops counting when the computer sleeps or
+//! locks, or two minutes after the last keyboard, mouse or game-controller input, and each stretch
+//! ends at the last moment of real use. A full-screen game or video that keeps the screen on still
+//! counts without input.
 
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -18,6 +21,8 @@ const MIN_SEGMENT_MS: i64 = 3_000;
 const LIVE_WINDOWS_MS: i64 = 10_000;
 const WINDOW_NOTE_MS: i64 = 5 * 60_000;
 const SETUP_SCAN_MS: i64 = 60 * 60_000;
+/// Checks happen every two seconds; a longer gap means the computer was asleep.
+const SLEEP_GAP_MS: i64 = 20_000;
 
 /// Shell surfaces and Tailor itself are never recorded.
 const IGNORED: &[&str] = &[
@@ -54,9 +59,19 @@ pub fn start(state: Shared, app: AppHandle) {
     let _ = (state, app);
 }
 
+/// When a stretch of activity really ended: before a sleep, at the last check; when the person
+/// stopped using the computer, at their last input; otherwise now.
+fn segment_end(start: i64, now: i64, last_check: i64, slept: bool, idle_since: Option<i64>) -> i64 {
+    let end = if slept { last_check } else { idle_since.unwrap_or(now) };
+    end.clamp(start, now)
+}
+
 #[cfg(windows)]
 fn run(state: Shared, app: AppHandle) {
     let mut current: Option<(String, String, i64)> = None;
+    let mut last_check = now_ms();
+    let mut last_packets = win::controller_packets();
+    let mut last_controller = 0i64;
     let mut last_clip = win::clipboard_seq();
     let mut last_live = 0i64;
     let mut last_window_note = 0i64;
@@ -70,10 +85,23 @@ fn run(state: Shared, app: AppHandle) {
         };
         let active = enabled && desktop;
         let now = now_ms();
+        let slept = now - last_check > SLEEP_GAP_MS;
+        let check_before = last_check;
+        last_check = now;
+
+        // Windows doesn't count game controllers as input, so watch them separately.
+        let packets = win::controller_packets();
+        if packets != last_packets {
+            last_packets = packets;
+            last_controller = now;
+        }
+        let input_idle = (win::idle_ms() as i64).min(now - last_controller);
+        let watching = win::foreground_fullscreen() && win::display_kept_on();
+        let in_use = !slept && (input_idle < IDLE_MS as i64 || watching);
         // When the extension is live, it reports browser activity in more detail.
         let extension_live = now - state.extension_last_seen.load(Ordering::Relaxed) < 10 * 60_000;
 
-        let fg = if active && win::idle_ms() < IDLE_MS {
+        let fg = if active && in_use {
             win::foreground().filter(|(a, _)| {
                 !IGNORED.contains(&a.as_str()) && !(extension_live && BROWSERS.contains(&a.as_str()))
             })
@@ -90,7 +118,8 @@ fn run(state: Shared, app: AppHandle) {
         };
         if changed {
             if let Some((a, t, start)) = current.take() {
-                let dur = now - start;
+                let idle_since = (fg.is_none() && !watching).then(|| now - input_idle);
+                let dur = segment_end(start, now, check_before, slept, idle_since) - start;
                 if dur >= MIN_SEGMENT_MS {
                     state.desktop_last_seen.store(now, Ordering::Relaxed);
                     record_events(
@@ -206,7 +235,10 @@ fn run(state: Shared, app: AppHandle) {
 
 #[cfg(windows)]
 mod win {
-    use windows::Win32::Foundation::{BOOL, CloseHandle, HWND, LPARAM};
+    use windows::Win32::Foundation::{BOOL, CloseHandle, HWND, LPARAM, RECT};
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow};
+    use windows::Win32::System::Power::{CallNtPowerInformation, ES_DISPLAY_REQUIRED, SystemExecutionState};
+    use windows::Win32::UI::Input::XboxController::{XINPUT_STATE, XInputGetState};
     use windows::Win32::Graphics::Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute};
     use windows::Win32::System::DataExchange::GetClipboardSequenceNumber;
     use windows::Win32::System::SystemInformation::GetTickCount;
@@ -216,7 +248,7 @@ mod win {
     };
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
     use windows::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GW_OWNER, GWL_EXSTYLE, GetForegroundWindow, GetWindow, GetWindowLongW,
+        EnumWindows, GW_OWNER, GWL_EXSTYLE, GetForegroundWindow, GetWindow, GetWindowLongW, GetWindowRect,
         GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
         WS_EX_TOOLWINDOW,
     };
@@ -249,6 +281,53 @@ mod win {
             }
             describe(hwnd)
         }
+    }
+
+    /// The front window fills its whole screen: usually a game or a full-screen video.
+    pub fn foreground_fullscreen() -> bool {
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.0.is_null() {
+                return false;
+            }
+            let mut rect = RECT::default();
+            if GetWindowRect(hwnd, &mut rect).is_err() {
+                return false;
+            }
+            let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+            if !GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mut info).as_bool() {
+                return false;
+            }
+            let m = info.rcMonitor;
+            rect.left <= m.left && rect.top <= m.top && rect.right >= m.right && rect.bottom >= m.bottom
+        }
+    }
+
+    /// Something asked Windows to keep the screen on, as games and video players do.
+    pub fn display_kept_on() -> bool {
+        let mut state = 0u32;
+        let status = unsafe {
+            CallNtPowerInformation(
+                SystemExecutionState,
+                None,
+                0,
+                Some(&mut state as *mut u32 as *mut std::ffi::c_void),
+                std::mem::size_of::<u32>() as u32,
+            )
+        };
+        status.is_ok() && state & ES_DISPLAY_REQUIRED.0 != 0
+    }
+
+    /// One counter per game controller; it changes whenever that controller is used.
+    pub fn controller_packets() -> [u32; 4] {
+        let mut out = [0u32; 4];
+        for (i, slot) in out.iter_mut().enumerate() {
+            let mut st = XINPUT_STATE::default();
+            if unsafe { XInputGetState(i as u32, &mut st) } == 0 {
+                *slot = st.dwPacketNumber;
+            }
+        }
+        out
     }
 
     /// Every visible, titled top-level window the person can actually see.
@@ -310,5 +389,34 @@ mod win {
             let title = super::clean_title(&exe, title.trim());
             Some((exe, title))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::segment_end;
+
+    const MIN: i64 = 60_000;
+
+    #[test]
+    fn a_focus_change_ends_the_stretch_now() {
+        assert_eq!(segment_end(0, 10 * MIN, 10 * MIN - 2_000, false, None), 10 * MIN);
+    }
+
+    #[test]
+    fn walking_away_ends_the_stretch_at_the_last_input() {
+        // Last touched the keyboard at 8 minutes; noticed at 10 (two minutes idle).
+        assert_eq!(segment_end(0, 10 * MIN, 10 * MIN - 2_000, false, Some(8 * MIN)), 8 * MIN);
+    }
+
+    #[test]
+    fn sleep_time_is_never_counted() {
+        // Last check at 5 minutes, then the laptop slept for six hours.
+        assert_eq!(segment_end(0, 365 * MIN, 5 * MIN, true, Some(0)), 5 * MIN);
+    }
+
+    #[test]
+    fn the_end_is_never_before_the_start() {
+        assert_eq!(segment_end(9 * MIN, 10 * MIN, 10 * MIN, false, Some(8 * MIN)), 9 * MIN);
     }
 }
