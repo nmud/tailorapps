@@ -12,20 +12,26 @@ const MUSE_BASE_URL = (Deno.env.get('MUSE_BASE_URL') ?? 'https://api.meta.ai/v1'
 const DAILY_LIMIT = Number(Deno.env.get('TAILOR_DAILY_LIMIT') ?? 300);
 // Spend-limit alerts don't stop billing, so cap everyone's total too.
 const GLOBAL_DAILY_LIMIT = Number(Deno.env.get('TAILOR_GLOBAL_DAILY_LIMIT') ?? 3000);
-const MAX_BODY_CHARS = 1_500_000;
+// Requests from one network address per day, so throwaway accounts can't use up everyone's share.
+const IP_DAILY_LIMIT = Number(Deno.env.get('TAILOR_IP_DAILY_LIMIT') ?? 1000);
+const IP_SIGNUP_LIMIT = Number(Deno.env.get('TAILOR_IP_SIGNUP_LIMIT') ?? 20);
+// The largest request the app sends is a Builder fix with every file of one small app.
+const MAX_BODY_CHARS = 400_000;
+const ROLES = new Set(['system', 'user', 'assistant']);
 
 // The Meta model for each job. People never choose; override with secrets if needed.
-const AGENTS: Record<string, { model: string; reasoning: string }> = {
+// maxTokens caps each reply (reasoning included), so one request can never run up a large bill.
+const AGENTS: Record<string, { model: string; reasoning: string; maxTokens: number }> = {
   // Frequent, structured summarizing of counted activity: fast and cheap.
-  observer: { model: Deno.env.get('MUSE_MODEL_OBSERVER') ?? 'muse-spark-1.3', reasoning: 'low' },
+  observer: { model: Deno.env.get('MUSE_MODEL_OBSERVER') ?? 'muse-spark-1.3', reasoning: 'low', maxTokens: 12_000 },
   // Quick idea cards the person is waiting on: fast model, light reasoning (~10s for three).
-  ideas: { model: Deno.env.get('MUSE_MODEL_IDEAS') ?? 'muse-spark-1.3', reasoning: 'low' },
+  ideas: { model: Deno.env.get('MUSE_MODEL_IDEAS') ?? 'muse-spark-1.3', reasoning: 'low', maxTokens: 8_000 },
   // The full plan for the one idea being built: the most capable model.
-  designer: { model: Deno.env.get('MUSE_MODEL_DESIGNER') ?? 'muse-wonder-1.0', reasoning: 'high' },
+  designer: { model: Deno.env.get('MUSE_MODEL_DESIGNER') ?? 'muse-wonder-1.0', reasoning: 'high', maxTokens: 20_000 },
   // Writing and fixing software: Muse Wonder is Meta's model for complex engineering.
-  builder: { model: Deno.env.get('MUSE_MODEL_BUILDER') ?? 'muse-wonder-1.0', reasoning: 'high' },
+  builder: { model: Deno.env.get('MUSE_MODEL_BUILDER') ?? 'muse-wonder-1.0', reasoning: 'high', maxTokens: 64_000 },
   // Using the app like its intended person would, step by step: many quick turns.
-  tester: { model: Deno.env.get('MUSE_MODEL_TESTER') ?? 'muse-spark-1.3', reasoning: 'medium' },
+  tester: { model: Deno.env.get('MUSE_MODEL_TESTER') ?? 'muse-spark-1.3', reasoning: 'medium', maxTokens: 8_000 },
 };
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
@@ -40,6 +46,14 @@ function fail(status: number, code: string, message: string) {
   return json({ error: { code, message } }, status);
 }
 
+/** The caller's network address, kept only as a salted hash. */
+async function ipHash(req: Request): Promise<string> {
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || req.headers.get('cf-connecting-ip') || 'unknown';
+  const salt = Deno.env.get('TAILOR_IP_SALT') ?? SERVICE_KEY;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${ip}`));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+
 async function signup(req: Request) {
   const { name, email, password } = await req.json().catch(() => ({}));
   const cleanEmail = String(email ?? '').trim().toLowerCase();
@@ -47,6 +61,12 @@ async function signup(req: Request) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return fail(400, 'bad_email', 'Please enter a valid email address.');
   if (String(password ?? '').length < 8) return fail(400, 'weak_password', 'Your password needs at least 8 characters.');
   if (!cleanName) return fail(400, 'no_name', 'Please enter your name.');
+
+  const { data: attempts, error: limitError } = await admin.rpc('tailor_take_signup', { p_ip: await ipHash(req) });
+  if (limitError) return fail(500, 'signup_failed', 'Something went wrong. Please try again.');
+  if (Number(attempts) > IP_SIGNUP_LIMIT) {
+    return fail(429, 'too_many', 'Too many new accounts from this network today. Please try again tomorrow.');
+  }
 
   const { error } = await admin.auth.admin.createUser({
     email: cleanEmail,
@@ -58,7 +78,8 @@ async function signup(req: Request) {
     if (/already|registered|exists/i.test(error.message)) {
       return fail(409, 'exists', 'There is already an account with this email. Try signing in.');
     }
-    return fail(400, 'signup_failed', error.message);
+    console.error('signup failed:', error.message);
+    return fail(400, 'signup_failed', "We couldn't create your account. Please check your details and try again.");
   }
   return json({ ok: true });
 }
@@ -74,7 +95,7 @@ async function chat(req: Request) {
 
   const raw = await req.text();
   if (raw.length > MAX_BODY_CHARS) return fail(413, 'too_large', 'That request is too large.');
-  let body: { agent?: string; messages?: unknown[]; response_format?: unknown; stream?: boolean; reasoning?: boolean };
+  let body: { agent?: string; messages?: unknown[]; response_format?: unknown; stream?: boolean; reasoning?: boolean; max_tokens?: number };
   try {
     body = JSON.parse(raw);
   } catch {
@@ -82,21 +103,35 @@ async function chat(req: Request) {
   }
   const agent = AGENTS[body.agent ?? ''];
   if (!agent) return fail(400, 'bad_agent', 'Unknown agent.');
-  if (!Array.isArray(body.messages) || body.messages.length === 0 || body.messages.length > 40) {
-    return fail(400, 'bad_messages', 'Malformed request.');
-  }
+  // Plain text chat only: Tailor never sends images, tools or other message kinds.
+  const messages = body.messages;
+  const wellFormed =
+    Array.isArray(messages) &&
+    messages.length > 0 &&
+    messages.length <= 40 &&
+    messages.every((m) => {
+      const msg = m as { role?: unknown; content?: unknown };
+      return typeof msg === 'object' && msg !== null && ROLES.has(String(msg.role)) && typeof msg.content === 'string' && Object.keys(msg).length === 2;
+    });
+  if (!wellFormed) return fail(400, 'bad_messages', 'Malformed request.');
+  const format = body.response_format as { type?: string } | undefined;
+  if (format && format.type !== 'json_schema' && format.type !== 'json_object') return fail(400, 'bad_format', 'Malformed request.');
 
-  const { data: total } = await admin.rpc('tailor_usage_today');
-  if (Number(total) >= GLOBAL_DAILY_LIMIT) {
-    return fail(429, 'daily_limit', 'Tailor is very busy today. Please try again tomorrow.');
-  }
-  const { data: count, error: usageError } = await admin.rpc('tailor_bump_usage', { p_user: data.user.id });
+  // Every daily cap is checked and counted in one step, so parallel requests can't slip past.
+  const { data: verdict, error: usageError } = await admin.rpc('tailor_take_request', {
+    p_user: data.user.id,
+    p_ip: await ipHash(req),
+    p_user_limit: DAILY_LIMIT,
+    p_ip_limit: IP_DAILY_LIMIT,
+    p_global_limit: GLOBAL_DAILY_LIMIT,
+  });
   if (usageError) return fail(500, 'usage_failed', 'Something went wrong. Please try again.');
-  if (Number(count) > DAILY_LIMIT) {
-    return fail(429, 'daily_limit', "You've reached today's limit. Please try again tomorrow.");
-  }
+  if (verdict === 'global') return fail(429, 'daily_limit', 'Tailor is very busy today. Please try again tomorrow.');
+  if (verdict !== 'ok') return fail(429, 'daily_limit', "You've reached today's limit. Please try again tomorrow.");
 
-  const upstreamBody: Record<string, unknown> = { model: agent.model, messages: body.messages };
+  const asked = Number(body.max_tokens);
+  const maxTokens = Number.isFinite(asked) && asked > 0 ? Math.min(Math.floor(asked), agent.maxTokens) : agent.maxTokens;
+  const upstreamBody: Record<string, unknown> = { model: agent.model, messages, max_completion_tokens: maxTokens };
   if (body.reasoning !== false) upstreamBody.reasoning_effort = agent.reasoning;
   if (body.response_format) upstreamBody.response_format = body.response_format;
   if (body.stream) upstreamBody.stream = true;
