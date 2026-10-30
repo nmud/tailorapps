@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { Eye, Hammer, LayoutGrid, Lightbulb, Settings2 } from 'lucide-react';
+import { Eye, Hammer, LayoutGrid, Lightbulb, Settings2, Target } from 'lucide-react';
 import { analyze } from './agents/observer';
 import { ensureWorkspace, reportRuntime } from './agents/builder';
 import { reportTestMessage } from './agents/tester';
@@ -18,9 +18,11 @@ import Workshop from './views/Workshop';
 import Deck from './views/Deck';
 import Memory from './views/Memory';
 import Settings from './views/Settings';
+import Goals from './views/Goals';
 
 const NAV: { id: View; label: string; icon: typeof Eye }[] = [
   { id: 'discover', label: 'Ideas', icon: Lightbulb },
+  { id: 'goals', label: 'Goals', icon: Target },
   { id: 'workshop', label: 'Building', icon: Hammer },
   { id: 'deck', label: 'My apps', icon: LayoutGrid },
   { id: 'memory', label: 'Learning', icon: Eye },
@@ -194,6 +196,8 @@ export default function App() {
         <div className="view" key={view}>
         {!loaded ? null : view === 'discover' ? (
           <Discover />
+        ) : view === 'goals' ? (
+          <Goals />
         ) : view === 'workshop' ? (
           <Workshop />
         ) : view === 'deck' ? (

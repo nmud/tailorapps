@@ -437,3 +437,26 @@ details.more > div { margin-top: var(--space-sm); }
 /* A generated app inside its own Tailor-style glass frame. */
 .framed-app { padding: 0 var(--space-xs) var(--space-xs); }
 .framed-app iframe { display: block; width: 100%; height: 100%; border: 1px solid var(--glass-edge); border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--glass-highlight), var(--glass-shadow); }
+
+/* Goals */
+.goal-form { display: flex; flex-direction: column; gap: var(--space-sm); }
+.goal-options { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
+.goal-options .btn--primary { margin-left: auto; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--radius-pill); background: var(--tint-1); }
+.seg-item { height: 32px; padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-ink-2); font: inherit; font-weight: 600; font-size: var(--text-sm); cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out); }
+.seg-item:hover { color: var(--color-ink); }
+.seg-item[aria-checked="true"] { background: var(--glass-strong); color: var(--color-ink); box-shadow: var(--glass-highlight), 0 1px 4px oklch(25% 0.03 70 / 0.12); }
+.goal-strict { display: inline-flex; align-items: center; gap: var(--space-xs); font-weight: 600; font-size: var(--text-sm); cursor: pointer; }
+.goals { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-sm); }
+.goal { display: flex; flex-direction: column; gap: var(--space-sm); }
+.goal-head { display: flex; align-items: flex-start; gap: var(--space-sm); }
+.goal-head > svg { width: 22px; height: 22px; color: var(--color-accent); flex: none; margin-top: 2px; }
+.goal-head > div { flex: 1; display: flex; flex-direction: column; gap: var(--space-2xs); min-width: 0; }
+.goal-head strong { font-size: var(--text-lg); font-weight: 600; }
+.goal-tags { display: flex; gap: var(--space-2xs); flex-wrap: wrap; }
+.goal-target { color: var(--color-ink-2); }
+.goal-progress { display: flex; flex-direction: column; gap: var(--space-2xs); font-size: var(--text-sm); color: var(--color-ink-2); }
+.goal-meter { height: 8px; border-radius: var(--radius-pill); background: var(--tint-1); overflow: hidden; }
+.goal-meter i { display: block; height: 100%; border-radius: inherit; background: var(--color-accent); transition: width 600ms var(--ease-out); }
+.goal-meter[data-state="over"] i { background: var(--color-warn); }
+.goal-meter[data-state="over"] + span { color: var(--color-warn); font-weight: 600; }

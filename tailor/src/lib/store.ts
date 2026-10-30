@@ -7,6 +7,7 @@ import type {
   BuildJob,
   FeedbackEntry,
   FeedbackKind,
+  Goal,
   LearningCfg,
   Pattern,
   Profile,
@@ -57,6 +58,7 @@ export interface State {
   apps: AppRecord[];
   versions: AppVersion[];
   feedback: FeedbackEntry[];
+  goals: Goal[];
   job: BuildJob | null;
   workshopAppId: string | null;
   /** A hidden copy of an app the Tester agent is using. */
@@ -97,6 +99,7 @@ let state: State = {
   apps: [],
   versions: [],
   feedback: [],
+  goals: [],
   job: null,
   workshopAppId: null,
   testFrame: null,
@@ -173,6 +176,15 @@ export const save = {
       api.docsDelete('apps', id),
       ...versions.map((v) => api.docsDelete('versions', v.id)),
     ]);
+  },
+  goal(g: Goal) {
+    const item = { ...g, updatedAt: Date.now() };
+    setState((st) => ({ goals: upsert(st.goals, item) }));
+    return api.docsPut('goals', item.id, item);
+  },
+  removeGoal(id: string) {
+    setState((st) => ({ goals: st.goals.filter((g) => g.id !== id) }));
+    return api.docsDelete('goals', id);
   },
   version(v: AppVersion) {
     setState((st) => ({ versions: upsert(st.versions, v) }));
@@ -269,7 +281,7 @@ export async function signOut() {
 }
 
 export async function loadAll() {
-  const [settings, learning, suggestions, patterns, profile, apps, versions, feedback, observer] = await Promise.all([
+  const [settings, learning, suggestions, patterns, profile, apps, versions, feedback, observer, goals] = await Promise.all([
     api.kvGet<Partial<Settings>>('settings'),
     api.learningGet(),
     api.docsList<Suggestion>('suggestions'),
@@ -279,6 +291,7 @@ export async function loadAll() {
     api.docsList<AppVersion>('versions'),
     api.docsList<FeedbackEntry>('feedback'),
     api.kvGet<{ lastRunAt?: number }>('observer'),
+    api.docsList<Goal>('goals'),
   ]);
   setState({
     loaded: true,
@@ -290,6 +303,7 @@ export async function loadAll() {
     apps,
     versions,
     feedback: feedback.sort((a, b) => b.ts - a.ts),
+    goals: goals.sort((a, b) => a.createdAt - b.createdAt),
     observer: { running: false, lastRunAt: observer?.lastRunAt },
     workshopAppId: apps.find((a) => a.status === 'draft')?.id ?? null,
   });

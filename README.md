@@ -27,6 +27,7 @@ Everything runs on Meta models. People never choose a model; the backend assigns
 | --- | --- | --- | --- |
 | Observer | Turns counted activity signals into patterns | A digest of counts and titles | `muse-spark-1.3` |
 | Designer | Ideas: streams three quick idea cards (first in ~7 s), then writes the full plan for the one you make | Patterns, a short profile, your feedback | `muse-spark-1.3` for ideas, `muse-wonder-1.0` for the plan |
+| Goals | Reads each goal you set and picks which apps and sites to count; Tailor counts progress and ideas aim at your goals | Your goal and the names of apps and sites seen | `muse-spark-1.3` |
 | Builder | Writes, builds and fixes the app | Only the approved spec | `muse-wonder-1.0` |
 | Tester | Role-plays the person and uses the app before it ships | The spec, a one-line sketch of the person, the app's screen | `muse-spark-1.3` |
 

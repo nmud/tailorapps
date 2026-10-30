@@ -1,7 +1,22 @@
-export type View = 'discover' | 'workshop' | 'deck' | 'memory' | 'settings';
+export type View = 'discover' | 'goals' | 'workshop' | 'deck' | 'memory' | 'settings';
 
 export type EventSource = 'extension' | 'desktop' | 'demo';
 export type EventKind = 'focus' | 'copy' | 'paste' | 'search' | 'download' | 'navigate' | 'tabs' | 'windows' | 'setup';
+
+export type GoalKind = 'less' | 'more' | 'habit';
+
+/** Something the person is working toward, in their own words. Ideas aim at it. */
+export interface Goal {
+  id: string;
+  text: string;
+  kind: GoalKind;
+  /** The person wants to be held to it: ideas may be firmer (limits, streaks, check-ins). */
+  strict: boolean;
+  createdAt: number;
+  updatedAt: number;
+  /** What Tailor can count for it, chosen by Muse only from apps and sites Tailor has seen. */
+  measure?: { summary: string; contexts: string[]; minutesPerDay: number; daysPerWeek: number; at: number };
+}
 
 export interface ActivityEvent {
   id: number;
