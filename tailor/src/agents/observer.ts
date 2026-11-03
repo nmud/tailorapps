@@ -7,9 +7,12 @@ import { getState, save, setState, toast } from '../lib/store';
 import type { Pattern, PatternKind, Profile } from '../lib/types';
 import { hash } from '../lib/util';
 import { buildDigest, evidenceLine, type Digest } from './digest';
+import { basis, foldPatterns, samePattern, strongestFirst, type Basis } from './patterns';
 import { suggest } from './designer';
 
 const WINDOW_MS = 14 * 86_400_000;
+/** Tailor stops coming up with ideas on its own once this many are waiting. */
+const MAX_OPEN_IDEAS = 6;
 const KINDS: PatternKind[] = ['information-transfer', 'context-switching', 'repetition', 'lookup', 'tracking', 'organizing', 'other'];
 
 const SYSTEM = `You are the Observer agent inside Tailor, a desktop app that learns how one person works so it can later suggest small personal tools.
@@ -87,6 +90,24 @@ export async function loadDigest(): Promise<Digest> {
   return buildDigest(events);
 }
 
+/**
+ * Brings every pattern's numbers up to date and folds together patterns that say the same thing,
+ * pointing ideas at the one that stays. No AI involved.
+ */
+export async function tidyPatterns(digest?: Digest): Promise<void> {
+  const all = getState().patterns;
+  if (!all.length) return;
+  const d = digest ?? (await loadDigest());
+  const { keep, movedTo } = foldPatterns(all, new Map(d.signals.map((s) => [s.id, s])));
+  const before = new Map(all.map((p) => [p.id, JSON.stringify(p)]));
+  for (const p of keep) if (before.get(p.id) !== JSON.stringify(p)) await save.pattern(p);
+  for (const id of movedTo.keys()) await save.removePattern(id);
+  for (const s of getState().suggestions) {
+    if (!s.patternIds.some((id) => movedTo.has(id))) continue;
+    await save.suggestion({ ...s, patternIds: [...new Set(s.patternIds.map((id) => movedTo.get(id) ?? id))] });
+  }
+}
+
 export async function analyze(opts: { quiet?: boolean } = {}): Promise<void> {
   const st = getState();
   if (st.observer.running) return;
@@ -122,41 +143,49 @@ export async function analyze(opts: { quiet?: boolean } = {}): Promise<void> {
     const out = await chatJSON<ObserverOutput>('observer', SYSTEM, user, { name: 'observer_report', schema: SCHEMA });
 
     const signalById = new Map(digest.signals.map((s) => [s.id, s]));
-    const existing = new Map(getState().patterns.map((p) => [p.id, p]));
+    await tidyPatterns(digest);
+    const known = getState().patterns.map((p) => ({ p, b: basis(p, signalById) }));
+    const claimed = new Set<string>();
+    const kept: { p: Pattern; b: Basis }[] = [];
     const fresh: Pattern[] = [];
     const now = Date.now();
 
     for (const raw of out.patterns ?? []) {
-      const signals = (raw.signalIds ?? []).map((id) => signalById.get(id)).filter((s) => !!s);
+      const signals = [...new Set(raw.signalIds ?? [])].map((id) => signalById.get(id)).filter((s) => !!s);
       if (!signals.length) continue;
-      const ids = [...new Set(signals.map((s) => s.id))].sort();
-      const id = `p_${hash(ids.join('|'))}`;
-      // Session-based signals are the most checkable evidence; tool setup counts come second.
-      const ordered = [...signals].sort(
-        (a, b) => Number(a.kind === 'setup') - Number(b.kind === 'setup') || b.sessions - a.sessions || b.occurrences - a.occurrences
-      );
+      const ids = signals.map((s) => s.id).sort();
+      const ordered = strongestFirst(signals);
       const strongest = ordered[0];
-      const prev = existing.get(id);
+      const kind = KINDS.includes(raw.kind) ? raw.kind : 'other';
+      const b: Basis = { signalIds: ids, lead: strongest.id, kind, contexts: [...new Set(signals.flatMap((s) => s.contexts))] };
+      // Said twice in one reply: keep the first.
+      if (kept.some((k) => samePattern(k.b, b))) continue;
+      // Seen before under other words: update that one, so ideas stay linked and nothing doubles up.
+      const prev = known.find((k) => !claimed.has(k.p.id) && samePattern(k.b, b))?.p;
+      if (prev?.status === 'dismissed') continue;
+      const id = prev?.id ?? `p_${hash(ids.join('|'))}`;
+      if (kept.some((k) => k.p.id === id)) continue;
+      if (prev) claimed.add(prev.id);
       const pattern: Pattern = {
         id,
         signalIds: ids,
         title: raw.title.trim(),
         description: raw.description.trim(),
         friction: raw.friction.trim(),
-        kind: KINDS.includes(raw.kind) ? raw.kind : 'other',
-        contexts: [...new Set(signals.flatMap((s) => s.contexts))],
+        kind,
+        contexts: b.contexts,
         occurrences: strongest.occurrences,
         sessions: strongest.sessions,
         totalSessions: strongest.totalSessions,
-        evidence: ordered.slice(0, 2).map(evidenceLine).join('. '),
+        evidence: evidenceLine(strongest),
         confidence: Math.max(0, Math.min(1, Number(raw.confidence) || 0)),
         firstSeen: prev?.firstSeen ?? now,
         lastSeen: Math.max(...signals.map((s) => s.lastSeen)),
-        status: prev?.status ?? 'active',
+        status: 'active',
         demo: signals.every((s) => s.demo),
       };
-      if (pattern.status === 'dismissed') continue;
       await save.pattern(pattern);
+      kept.push({ p: pattern, b });
       if (!prev) fresh.push(pattern);
     }
 
@@ -179,9 +208,11 @@ export async function analyze(opts: { quiet?: boolean } = {}): Promise<void> {
     });
     await save.observerMeta({ lastRunAt: now });
 
+    // New ideas only for something genuinely new, and only while the waiting list is short.
     const worthy = fresh.filter((p) => p.confidence >= 0.55);
-    if (worthy.length && getState().settings.autoSuggest) {
-      await suggest({ focusPatternIds: worthy.map((p) => p.id), count: Math.min(3, worthy.length + 1), origin: 'auto' });
+    const room = MAX_OPEN_IDEAS - getState().suggestions.filter((s) => s.status === 'new').length;
+    if (worthy.length && room > 0 && getState().settings.autoSuggest) {
+      await suggest({ focusPatternIds: worthy.map((p) => p.id), count: Math.min(3, worthy.length + 1, room), origin: 'auto' });
     }
   } catch (e) {
     const msg = friendlyError(e);

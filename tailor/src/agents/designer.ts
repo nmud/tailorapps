@@ -14,9 +14,10 @@ import { goalsForDesigner } from './goals';
 
 const FEEDS: FeedName[] = ['open-tabs', 'open-windows', 'ai-tools'];
 
-const RULES = `- Ground every suggestion in the observed patterns: list their ids in patternIds and, in "rationale", say what you noticed using the evidence numbers exactly as given (e.g. "You copied from arxiv.org into Obsidian 34 times across 6 of 7 sessions"). Never invent observations or numbers.
+const RULES = `- Ground every suggestion in the observed patterns and list their ids in patternIds. The counted evidence is shown to the person right next to the idea, so the "rationale" must not repeat numbers or restate the evidence: in one short sentence, say what changes for them (e.g. "Paper details go straight into your notes, so you stop copying them by hand"). Never invent observations or numbers.
 - If the user asked for something, fit the suggestions to their request. When no pattern relates, leave patternIds empty and make the rationale say it comes from their request.
 - Respect feedback. Never re-suggest a denied idea or a close variant; lean into the direction of their edits and change requests. Don't duplicate installed apps.
+- Every idea must do a clearly different job from the open suggestions already shown. A new name for the same job (another window list, another change-and-test log) is a repeat.
 - Look for clutter as well as repetition: lots of tabs open on one site (e.g. many AI chats), many windows of one app (e.g. several terminals running coding agents), or many tools set up in an AI app (MCP servers, connectors, plugins, skills). These call for an organizer: one calm place that lists everything, groups it, and lets the person label and find things. Example: many claude.ai tabs plus many MCP servers in Claude Code suggests "Agent Hub: see all your AI chats and tools in one place".
 - Apps can't see the person's computer by default. They can be given read-only live data, and the person sees exactly what an app can see before it is made. Request a feed in "feeds" only when the app is useless without it: "open-tabs" (browser tabs open right now: titles and addresses), "open-windows" (windows open on this computer), "ai-tools" (names of the MCP servers, connectors, plugins and skills set up in AI tools like Claude Code). Otherwise data gets in by paste, dropping a file, or typing; design for that.
 - Network access is off by default. Only request it when essential, and only for specific public API hosts (e.g. "export.arxiv.org"). Never for analytics. An app that uses live data ("feeds") never gets network access.
@@ -236,7 +237,9 @@ export async function suggest(opts: { ask?: string; focusPatternIds?: string[]; 
       goals ? `\n${goals}` : '',
       '',
       ask ? `The user asked: "${ask}"` : 'The user did not ask for anything specific; propose what would help most.',
-      `Propose ${count} app${count === 1 ? '' : 's'}.`,
+      opts.origin === 'auto'
+        ? `Propose up to ${count} app${count === 1 ? '' : 's'}, only for something the open suggestions don't already cover. If nothing new stands out, return an empty list.`
+        : `Propose ${count} app${count === 1 ? '' : 's'}.`,
     ].join('\n');
 
     let streamed = '';
@@ -274,6 +277,7 @@ export async function suggest(opts: { ask?: string; focusPatternIds?: string[]; 
       designer: { running: false },
       unseenSuggestions: cur.view === 'discover' ? 0 : cur.unseenSuggestions + created.length,
     }));
+    if (opts.origin === 'ask' && !created.length) toast('No new ideas this time. Try describing an app you want.');
     if (opts.origin === 'auto' && created.length && getState().view !== 'discover') {
       toast(`New idea for you: ${created[0].name}`, {
         action: { label: 'View', run: () => setState({ view: 'discover', selectedSuggestionId: created[0].id, unseenSuggestions: 0 }) },

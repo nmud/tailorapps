@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { Eye, Hammer, LayoutGrid, Lightbulb, Settings2, Target } from 'lucide-react';
-import { analyze } from './agents/observer';
+import { analyze, tidyPatterns } from './agents/observer';
 import { ensureWorkspace, reportRuntime } from './agents/builder';
 import { reportTestMessage } from './agents/tester';
 import { appUrl } from './lib/api';
@@ -175,6 +175,11 @@ export default function App() {
   useEffect(() => {
     if (user) ensureWorkspace(true).catch(() => {});
   }, [user]);
+
+  // Fresh numbers for what Tailor noticed, with repeats folded together (no AI involved).
+  useEffect(() => {
+    if (user && loaded) tidyPatterns().catch(() => {});
+  }, [user, loaded]);
 
   const frame = (content: React.ReactNode, showBrand = true) => (
     <div className="app-frame">

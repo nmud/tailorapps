@@ -11,6 +11,7 @@ import type { FeedName, Pattern, Suggestion } from '../lib/types';
 import { DemoTag, Notice, SessionDots } from '../components/ui';
 
 const EXAMPLES = ['Keep track of what I read', 'Plan my week', 'Less copying and pasting'];
+const SHOW_IDEAS = 6;
 
 /** What each kind of live data means, in words anyone can check. */
 export const FEED_WORDS: Record<FeedName, string> = {
@@ -94,6 +95,8 @@ function Detail({ s, patterns }: { s: Suggestion; patterns: Pattern[] }) {
   const [reason, setReason] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const linked = patterns.filter((p) => s.patternIds.includes(p.id));
+  // One line per distinct thing noticed, at most two.
+  const evidence = [...new Map(linked.map((p) => [p.evidence, p])).values()].slice(0, 2);
 
   if (mode === 'edit') return <EditForm s={s} onDone={() => setMode('view')} />;
 
@@ -115,7 +118,7 @@ function Detail({ s, patterns }: { s: Suggestion; patterns: Pattern[] }) {
   }
 
   return (
-    <article className="panel detail" aria-labelledby="idea-name">
+    <article className="panel detail detail--split" aria-labelledby="idea-name">
       <header className="detail-head">
         <AppGlyph icon={s.icon} accent={s.accent} size="lg" />
         <div>
@@ -124,98 +127,102 @@ function Detail({ s, patterns }: { s: Suggestion; patterns: Pattern[] }) {
         </div>
       </header>
 
-      <div className="why">
-        <strong>Why Tailor thinks this will help</strong>
-        <p>{s.rationale}</p>
-        {linked.map((p) => (
-          <div className="why-line" key={p.id}>
-            <SessionDots sessions={p.sessions} total={p.totalSessions} />
-            <span>{p.evidence}</span>
-          </div>
-        ))}
-        <DemoTag show={s.demo} />
-      </div>
-
-      <div className="section">
-        <h3 className="section-title">What it does</h3>
-        <ul className="features">
-          {s.features.map((f) => (
-            <li key={f}>
-              <Check strokeWidth={2.5} /> {f}
-            </li>
+      <div className="detail-body">
+        <div className="why">
+          <strong>Why Tailor thinks this will help</strong>
+          <p>{s.rationale}</p>
+          {evidence.map((p) => (
+            <div className="why-line" key={p.id}>
+              <SessionDots sessions={p.sessions} total={p.totalSessions} />
+              <span>{p.evidence}</span>
+            </div>
           ))}
-        </ul>
-      </div>
-
-      <div className="facts">
-        {(s.feeds ?? []).map((f) => (
-          <div key={f}>
-            <Eye /> Can see {FEED_WORDS[f]}
-          </div>
-        ))}
-        <div>
-          {s.network.length ? <Wifi /> : <WifiOff />}
-          {s.network.length ? `Uses the internet to reach ${s.network.join(', ')}` : 'Works without the internet'}
+          <DemoTag show={s.demo} />
         </div>
-        <div>
-          <Lock /> Only you can see what you put in it
-        </div>
-      </div>
-
-      <details className="more">
-        <summary>
-          <ChevronRight /> More details
-        </summary>
-        <div className="spec-body">
-          <p>{s.spec.summary}</p>
-          {s.spec.screens.length > 0 && (
-            <ul>
-              {s.spec.screens.map((x) => (
-                <li key={x.name}>
-                  <strong>{x.name}</strong>: {x.purpose}
-                </li>
-              ))}
-            </ul>
-          )}
-          {s.builderNotes && <p>Your notes: {s.builderNotes}</p>}
-          {s.specReady === false && <p className="muted">Tailor plans the rest in detail when you make it.</p>}
-        </div>
-      </details>
-
-      {mode === 'deny' ? (
-        <div className="deny-box">
-          <strong>What's wrong with it?</strong>
-          <div className="chips">
-            {DENY_REASONS.map((r) => (
-              <button key={r.id} type="button" className="chip" aria-pressed={reason === r.id} onClick={() => setReason(r.id)}>
-                {r.label}
-              </button>
+  
+        <div className="section">
+          <h3 className="section-title">What it does</h3>
+          <ul className="features">
+            {s.features.map((f) => (
+              <li key={f}>
+                <Check strokeWidth={2.5} /> {f}
+              </li>
             ))}
+          </ul>
+        </div>
+  
+        <div className="facts">
+          {(s.feeds ?? []).map((f) => (
+            <div key={f}>
+              <Eye /> Can see {FEED_WORDS[f]}
+            </div>
+          ))}
+          <div>
+            {s.network.length ? <Wifi /> : <WifiOff />}
+            {s.network.length ? `Uses the internet to reach ${s.network.join(', ')}` : 'Works without the internet'}
           </div>
-          <input className="input" placeholder="Tell us more (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <div>
+            <Lock /> Only you can see what you put in it
+          </div>
+        </div>
+  
+        <details className="more">
+          <summary>
+            <ChevronRight /> More details
+          </summary>
+          <div className="spec-body">
+            <p>{s.spec.summary}</p>
+            {s.spec.screens.length > 0 && (
+              <ul>
+                {s.spec.screens.map((x) => (
+                  <li key={x.name}>
+                    <strong>{x.name}</strong>: {x.purpose}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {s.builderNotes && <p>Your notes: {s.builderNotes}</p>}
+            {s.specReady === false && <p className="muted">Tailor plans the rest in detail when you make it.</p>}
+          </div>
+        </details>
+      </div>
+
+      <div className="detail-foot">
+        {mode === 'deny' ? (
+          <div className="deny-box">
+            <strong>What's wrong with it?</strong>
+            <div className="chips">
+              {DENY_REASONS.map((r) => (
+                <button key={r.id} type="button" className="chip" aria-pressed={reason === r.id} onClick={() => setReason(r.id)}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <input className="input" placeholder="Tell us more (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <div className="actions">
+              <button className="btn btn--danger" onClick={deny}>
+                <X /> Not for me
+              </button>
+              <button className="btn btn--ghost" onClick={() => setMode('view')}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
           <div className="actions">
-            <button className="btn btn--danger" onClick={deny}>
-              <X /> Not for me
+            <button className="btn btn--primary btn--lg" disabled={!!job?.busy} onClick={() => startBuild(s)}>
+              Make this app
             </button>
-            <button className="btn btn--ghost" onClick={() => setMode('view')}>
-              Cancel
+            <button className="btn btn--lg" onClick={() => setMode('edit')}>
+              <Pencil /> Change it
+            </button>
+            <button className="btn btn--ghost btn--lg" onClick={() => setMode('deny')}>
+              Not for me
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="actions">
-          <button className="btn btn--primary btn--lg" disabled={!!job?.busy} onClick={() => startBuild(s)}>
-            Make this app
-          </button>
-          <button className="btn btn--lg" onClick={() => setMode('edit')}>
-            <Pencil /> Change it
-          </button>
-          <button className="btn btn--ghost btn--lg" onClick={() => setMode('deny')}>
-            Not for me
-          </button>
-        </div>
-      )}
-      {job?.busy && <p className="hint">Tailor is making another app. You can make this one when it's done.</p>}
+        )}
+        {job?.busy && <p className="hint">Tailor is making another app. You can make this one when it's done.</p>}
+      </div>
     </article>
   );
 }
@@ -237,6 +244,10 @@ export default function Discover() {
   const open = useMemo(() => suggestions.filter((s) => s.status === 'new').sort((a, b) => b.createdAt - a.createdAt), [suggestions]);
   const past = useMemo(() => suggestions.filter((s) => s.status !== 'new').sort((a, b) => b.updatedAt - a.updatedAt), [suggestions]);
   const selected = open.find((s) => s.id === selectedId) ?? open[0];
+  // A long list of waiting ideas is a wall: show the newest few unless asked for the rest.
+  const [showAll, setShowAll] = useState(false);
+  const hidden = showAll || open.length <= SHOW_IDEAS + 1 || open.indexOf(selected!) >= SHOW_IDEAS ? 0 : open.length - SHOW_IDEAS;
+  const shown = hidden ? open.slice(0, SHOW_IDEAS) : open;
 
   // People who just turned learning on: say plainly that ideas need a little time, and show progress.
   const newcomer = learning.enabled && !active.length && !open.length;
@@ -354,7 +365,7 @@ export default function Discover() {
         {open.length || designer.running ? (
           <div className="ideas-grid">
             <div className="idea-list stagger">
-              {open.map((s) => (
+              {shown.map((s) => (
                 <button key={s.id} className="idea-card shine" aria-current={s.id === selected?.id} onClick={() => setState({ selectedSuggestionId: s.id })}>
                   <AppGlyph icon={s.icon} accent={s.accent} />
                   <div>
@@ -373,6 +384,11 @@ export default function Discover() {
                     </div>
                   </div>
                 ))}
+              {hidden > 0 && (
+                <button className="btn btn--ghost idea-more" onClick={() => setShowAll(true)}>
+                  Show {hidden} older idea{hidden === 1 ? '' : 's'}
+                </button>
+              )}
             </div>
             {selected ? (
               <Detail s={selected} patterns={patterns} key={selected.id} />

@@ -286,7 +286,13 @@ details.more > div { margin-top: var(--space-sm); }
 .idea-card div { min-width: 0; }
 .idea-card strong { display: block; font-size: var(--text-lg); font-weight: 600; }
 .idea-card span { color: var(--color-ink-2); }
-.detail { position: sticky; top: 0; display: flex; flex-direction: column; gap: var(--space-lg); background-color: var(--glass-strong); }
+.idea-more { align-self: center; }
+/* The idea stays in view beside a long list, and never grows past the window. */
+.detail { position: sticky; top: var(--space-md); max-height: calc(100vh - var(--titlebar-height) - var(--space-xs) - var(--space-md) - var(--space-3xl)); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-lg); background-color: var(--glass-strong); }
+/* Name on top and buttons at the bottom stay put; only the middle scrolls. */
+.detail--split { overflow: hidden; gap: var(--space-md); }
+.detail-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: var(--space-lg); margin-inline: calc(-1 * var(--space-lg)); padding: 2px var(--space-lg); }
+.detail-foot { flex: none; display: flex; flex-direction: column; gap: var(--space-xs); padding-top: var(--space-md); border-top: 1px solid var(--glass-edge-dim); }
 .detail-head { display: flex; gap: var(--space-md); align-items: center; }
 .detail-head h2 { font-size: var(--text-2xl); line-height: 1.2; overflow-wrap: anywhere; }
 .detail-head p { color: var(--color-ink-2); font-size: var(--text-lg); }
@@ -420,7 +426,8 @@ details.more > div { margin-top: var(--space-sm); }
 
 @media (max-width: 1080px) {
   .ideas-grid, .sources { grid-template-columns: minmax(0, 1fr); }
-  .detail { position: static; }
+  .detail, .detail--split { position: static; max-height: none; overflow: visible; }
+  .detail-body { overflow: visible; margin-inline: 0; padding-inline: 0; }
   .bench { grid-template-columns: 290px minmax(0, 1fr); }
   .auth { grid-template-columns: minmax(0, 1fr); }
   .auth-brand { display: none; }

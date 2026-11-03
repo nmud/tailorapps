@@ -398,7 +398,7 @@ const KIND_WEIGHT: Record<Signal['kind'], number> = {
   dwell: 0.45,
 };
 
-function rank(s: Signal): number {
+export function rank(s: Signal): number {
   return KIND_WEIGHT[s.kind] * s.sessions * Math.log2(2 + s.occurrences);
 }
 
