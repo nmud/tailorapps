@@ -36,7 +36,8 @@ function feedText(app: AppRecord): string {
   return [
     "- Live data from this computer: the person allowed this app to read the feeds below. Import from './tailor' (managed by Tailor, already exists): import { readFeed, openLink, type OpenTab, type OpenWindow, type AiTool } from './tailor'.",
     ...feeds.map((f) => `  - ${FEED_DOCS[f]}`),
-    '  - readFeed returns { available, reason?, updatedAt?, items }. When available is false, show `reason` in a friendly empty state. Refresh every 10 seconds and offer a Refresh button. The data is read-only.',
+    "  - readFeed is async: always `const feed = await readFeed<...>('<name>')` inside an async function (in React, an async helper called from useEffect and from the Refresh button). Without await you get a Promise, not the data, and the app shows nothing.",
+    '  - It resolves to { available: boolean, reason?: string, updatedAt?: number (milliseconds since 1970; show it with new Date(updatedAt)), items: T[] }. When available is false, show `reason` in a friendly empty state. Refresh every 10 seconds and offer a Refresh button. The data is read-only.',
     '  - To open a web address in the browser, call openLink(url). Do not use window.open or target="_blank".',
     '  - Let the person add their own notes, names, groups or pins on top of the live data, saved in localStorage.',
   ].join('\n');
@@ -235,15 +236,47 @@ async function applyOutput(appId: string, text: string, requireApp: boolean): Pr
   return written.length;
 }
 
+/**
+ * Mistakes the build can't see because it doesn't type-check. Today: reading live data without
+ * waiting for it, which builds fine and then always shows an empty list.
+ */
+export function codeChecks(files: { path: string; content: string }[]): string[] {
+  const problems: string[] = [];
+  for (const f of files) {
+    if (!f.path.startsWith('src/') || f.path === 'src/tailor.ts') continue;
+    const code = f.content.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length));
+    for (const m of code.matchAll(/\breadFeed\s*(?:<[^>()]*>)?\s*\(/g)) {
+      const before = code.slice(0, m.index).trimEnd();
+      const waited = /(?:\bawait|\breturn|=>)$/.test(before) || /\bPromise\.all(?:Settled)?\s*\(\s*\[[^;]*$/.test(before.slice(-400));
+      let depth = 0;
+      let end = m.index! + m[0].length - 1;
+      for (; end < code.length; end++) {
+        if (code[end] === '(') depth++;
+        else if (code[end] === ')' && --depth === 0) break;
+      }
+      const chained = /^\s*\.\s*(?:then|catch|finally)\s*\(/.test(code.slice(end + 1));
+      if (waited || chained) continue;
+      const line = code.slice(0, m.index).split('\n').length;
+      problems.push(
+        `${f.path}:${line}: readFeed(...) returns a Promise, so it must be awaited: const feed = await readFeed<...>('<name>') inside an async function. Without await the app never sees the live data. Its updatedAt is a number (milliseconds), not a string.`
+      );
+    }
+  }
+  return problems;
+}
+
 async function buildUntilGreen(app: AppRecord, note: string, opts: { test?: boolean } = {}): Promise<AppRecord | null> {
   let runtimeFixes = 0;
   let tested = !opts.test;
   for (let attempt = 0; attempt <= MAX_BUILD_FIXES; attempt++) {
     phase('building', attempt === 0 ? 'Building' : `Rebuilding (attempt ${attempt + 1})`);
-    const res = await api.appBuild(app.id);
+    const built = await api.appBuild(app.id);
+    // New code only: restoring a saved version puts it back exactly as it was.
+    const problems = built.ok && opts.test ? codeChecks(await api.appReadFiles(app.id)) : [];
+    const res = problems.length ? { ...built, ok: false, errors: problems } : built;
     if (!res.ok) {
       log(res.errors.join('\n').slice(0, 1600), 'error');
-      if (res.crashed) throw new Error('Tailor couldn’t build apps right now. Please restart Tailor and try again.');
+      if (!built.ok && built.crashed) throw new Error('Tailor couldn’t build apps right now. Please restart Tailor and try again.');
       if (attempt === MAX_BUILD_FIXES) throw new Error('The build still fails after several fixes.');
       phase('fixing', 'Sending build errors back to the Builder');
       const files = await api.appReadFiles(app.id);
