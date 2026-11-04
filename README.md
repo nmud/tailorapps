@@ -2,7 +2,7 @@
 
 **You can't prompt what you don't know.** Tailor learns how you work, notices what slows you down, and builds the small apps you'd never think to ask for, using four Meta Muse agents.
 
-**[Demo video](YOUTUBE_LINK)** · **[Download for Windows](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe)** · [Mac (experimental)](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-mac.dmg) · [Website](https://nmud.github.io/tailorapps/)
+**[Demo video](YOUTUBE_LINK)** · **[Download for Windows](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe)** · [Mac (experimental)](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-mac.dmg) · [Website](https://tailorapps-zeta.vercel.app)
 
 *TailorApps is the project. On your computer, the app is simply called **Tailor**.*
 
