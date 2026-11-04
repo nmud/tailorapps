@@ -135,7 +135,6 @@ tailor/src-tauri/src/                collector, privacy floor, add-on endpoint, 
 tailor/src-tauri/resources/workspace app template, app kit, runtime and test harness
 extension/                           Chrome and Edge add-on
 website/                             the landing page
-video/                               demo video script and edit
 docs/HACKATHON.md                    rules, dates, judging, model choices
 ```
 
