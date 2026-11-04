@@ -1,0 +1,47 @@
+# Checks website/ whenever it changes. Vercel's GitHub integration does the actual deploy
+# (https://tailorapps-ai.vercel.app/); this is the check that runs next to it:
+#   1. every local link, script, stylesheet and image the site references exists in website/
+#   2. the live site serves the page
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', '.github/workflows/website.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Local references resolve
+        run: |
+          python3 - <<'EOF'
+          import re, pathlib, sys
+          site = pathlib.Path("website")
+          missing = []
+          for f in list(site.glob("*.html")) + list(site.glob("*.css")):
+              text = f.read_text()
+              refs = re.findall(r'(?:href|src)="([^"]+)"', text)
+              refs += re.findall(r'url\(["\']?([^"\')]+)["\']?\)', text)
+              for ref in refs:
+                  if ref.startswith(("#", "http://", "https://", "mailto:", "data:")):
+                      continue
+                  target = f.parent / ref.split("#")[0].split("?")[0]
+                  if not target.is_file():
+                      missing.append(f"{f}: {ref}")
+          print("\n".join(missing) or "all local references resolve")
+          sys.exit(1 if missing else 0)
+          EOF
+
+      - name: Live site serves the page
+        run: |
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 10 \
+            --output live.html https://tailorapps-ai.vercel.app/
+          grep -q '<title>TailorApps' live.html
+          echo "https://tailorapps-ai.vercel.app/ is up"
