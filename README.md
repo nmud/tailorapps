@@ -1,6 +1,6 @@
 # TailorApps
 
-**You can't prompt what you don't know.** Tailor learns how you work, notices what slows you down, and builds the small apps you'd never think to ask for, using four Meta Muse agents.
+Tailor learns how you work, notices what slows you down, and builds the small apps you'd never think to ask for, using four Meta Muse agents.
 
 **[Demo video](https://www.youtube.com/watch?v=D2u84cxnyik)** · **[Download for Windows](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe)** · [Mac (experimental)](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-mac.dmg) · [Website](https://tailorapps-ai.vercel.app)
 
