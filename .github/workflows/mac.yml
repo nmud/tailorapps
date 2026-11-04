@@ -1,0 +1,64 @@
+# Builds the experimental Mac version (Apple Silicon, unsigned) and attaches it to a release as
+# TailorApps-mac.dmg, so https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-mac.dmg works.
+# Runs when a release is published, or by hand with the tag to attach to.
+name: Mac build
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the build to
+        required: true
+        default: v0.1.2
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    env:
+      TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tailor/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: tailor/src-tauri -> target
+
+      - name: Install
+        working-directory: tailor
+        run: npm ci
+
+      # Build the .app only; the disk image is made with hdiutil below, which doesn't need a Finder session.
+      - name: Build
+        working-directory: tailor
+        run: npx tauri build --bundles app
+
+      - name: Package
+        run: |
+          app=$(ls -d tailor/src-tauri/target/release/bundle/macos/*.app | head -1)
+          # Ad-hoc sign the whole bundle so Apple Silicon will run it after download.
+          codesign --force --deep --sign - "$app"
+          mkdir dmg && cp -R "$app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname Tailor -srcfolder dmg -ov -format UDZO TailorApps-mac.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TailorApps-mac
+          path: TailorApps-mac.dmg
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" TailorApps-mac.dmg --clobber
