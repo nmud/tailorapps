@@ -1,127 +1,147 @@
 # TailorApps
 
+**You can't prompt what you don't know.** Tailor learns how you work, notices what slows you down, and builds the small apps you'd never think to ask for, using four Meta Muse agents.
+
+**[Demo video](YOUTUBE_LINK)** · **[Download for Windows](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe)** · [Mac (experimental)](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-mac.dmg) · [Website](https://nmud.github.io/tailorapps/)
+
 *TailorApps is the project. On your computer, the app is simply called **Tailor**.*
 
-**[Download for Windows](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe)** (Mac coming soon) · [Website](https://nmud.github.io/tailorapps/) (source in `website/`)
+Every AI app builder starts with a prompt, which only helps people who already know what software they need. Tailor starts from what you actually do. It explains each idea with something it counted, never something a model made up:
 
-**You can't prompt what you don't know.** Tailor is a Windows app that notices the things you do over and over (with your permission), suggests small apps that make them easier, builds them with Meta's Muse models, tests them the way you'd use them, and installs them as real apps on your computer.
+> *You copied from Snippingtool to Terminal 16 times, in 7 of your last 15 work sessions.*
+> → **Snip Fixes**: each screenshot becomes a fix to tick off.
 
-You don't need to know what software you need, or anything about software at all. Tailor explains every suggestion with something it actually counted:
+## Hackathon
 
-> *You had up to 13 claude.ai tabs open at once, in all 7 of your recent work sessions.*
-> → **Agent Hub**: all your AI chats and tools in one place.
+| | |
+| --- | --- |
+| Event | Meta Global AI Developer Hackathon, 2026 |
+| Track | Indie Developer |
+| Problem statement | Build for Your World |
+| Built | From scratch during the event, Oct 29 to Nov 4, 2026 (the repo starts Oct 29) |
+| Team | Raymond House (solo) |
+| Meta models | Muse Spark (`muse-spark-1.3`) and Muse Wonder (`muse-wonder-1.0`) through the Meta Model API |
+
+## Download
+
+- **Windows 10 and 11:** [TailorApps-Setup.exe](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-Setup.exe). The installer isn't signed yet, so if Windows doesn't recognise it, choose **More info**, then **Run anyway**.
+- **Mac, Apple Silicon (experimental):** [TailorApps-mac.dmg](https://github.com/nmud/tailorapps/releases/latest/download/TailorApps-mac.dmg). It's unsigned, so the first time, right-click the app and choose **Open**. On Mac, Tailor learns from websites only (through the browser add-on), and building apps needs Node 20+ installed.
+- **Browser add-on** (Chrome or Edge): Tailor's onboarding walks you through loading it.
 
 ## What it does
 
-1. **Learns how you work.** You choose what it may see: websites (a Chrome or Edge add-on) and apps on this computer. It never reads what you type or copy.
-2. **Notices friction.** It notices repetition (copying between the same places, switching back and forth) and clutter (lots of tabs or windows open, lots of AI tools set up).
-3. **Suggests apps**, says why, and shows exactly what each app would be allowed to see. You make it, change it, or say "not for me", and Tailor remembers that.
-4. **Builds the app**, fixes its own build and runtime errors, then **tries it out the way you would** before you see it. Problems the Tester finds go back to the Builder.
-5. **Installs it as a real app**: its own window, taskbar button, icon and Start menu entry. Pin it like any other app.
+1. **Learns how you work, with permission.** You choose what it may see: websites (browser add-on) and apps on this computer. It never reads what you type or copy.
+2. **Notices friction, in code.** It counts repetition (copying between the same two places, switching back and forth) and clutter (piles of tabs, windows or AI tools).
+3. **Suggests small apps** and says why, with that evidence and exactly what each app could see or reach. Make it, change it, or say "not for me". Tailor remembers either way.
+4. **Builds and tests the app.** The Builder fixes its own build and runtime errors. Then the Tester uses the app the way you would, clicking and typing in a hidden copy, and sends problems back before you see it.
+5. **Hands you a real app**, with its own window and icon. On Windows it also gets a taskbar button and a Start menu entry. Each app is sealed off and can reach only the sites you approved.
+6. **Works toward your goals.** Write one in plain words ("spend less time in AI chats"). Progress is counted, and new ideas aim at it.
 
-Tailor itself stays in the system tray when you close it, like Discord, and can start with Windows.
+## How it uses Meta's models
 
-## Agents and models
-
-Everything runs on Meta models. People never choose a model; the backend assigns them (`backend/supabase/functions/tailor/index.ts`).
+Everything runs on Muse. People never pick a model: the backend assigns one per agent (`backend/supabase/functions/tailor/index.ts`).
 
 | Agent | Job | What it sees | Model |
 | --- | --- | --- | --- |
-| Observer | Turns counted activity signals into patterns | A digest of counts and titles | `muse-spark-1.3` |
-| Designer | Ideas: streams three quick idea cards (first in ~7 s), then writes the full plan for the one you make | Patterns, a short profile, your feedback | `muse-spark-1.3` for ideas, `muse-wonder-1.0` for the plan |
-| Goals | Reads each goal you set and picks which apps and sites to count; Tailor counts progress and ideas aim at your goals | Your goal and the names of apps and sites seen | `muse-spark-1.3` |
-| Builder | Writes, builds and fixes the app | Only the approved spec | `muse-wonder-1.0` |
-| Tester | Role-plays the person and uses the app before it ships | The spec, a one-line sketch of the person, the app's screen | `muse-spark-1.3` |
+| Observer | Names patterns in the counted signals, by signal id | A digest of counts and titles | `muse-spark-1.3`, low reasoning |
+| Designer (ideas) | Streams idea cards, parsed as each JSON object completes | Patterns, a short profile, your feedback | `muse-spark-1.3`, low reasoning |
+| Designer (plan) | Writes the full buildable spec for the idea you choose | The chosen idea | `muse-wonder-1.0`, high reasoning |
+| Builder | Writes a multi-file React app and fixes build and runtime errors (up to 3 and 2 rounds) | Only the approved spec | `muse-wonder-1.0`, high reasoning |
+| Tester | Role-plays you and drives the real app, one action per step (up to 14) | The spec and the app's screen | `muse-spark-1.3`, medium reasoning |
+| Goals | Picks which apps and sites a goal should count | Your goal and names of apps and sites seen | `muse-spark-1.3` |
 
-- **Evidence is counted, not generated.** Sessions, copy→paste flows, back-and-forth switching, and tab/window/tool clutter are computed in code (`src/agents/digest.ts`). Models only name and interpret signals by id.
-- **The Tester really uses the app.** It reads the screen, clicks, types and chooses, one step at a time, inside a hidden copy (`src/agents/tester.ts` with the harness in `tailor-runtime.js`). Downloads, file pickers, dialogs and links are blocked during the test, and the app's saved data is restored afterwards.
+- **Spark where speed matters, Wonder where quality does.** Wonder took about 36 s for three idea cards, so Spark streams them (first card in about 7 s) and Wonder plans only the app you pick.
+- **API features used:** strict `json_schema` structured output, streaming with usage reporting, `reasoning_effort` per agent, and `max_completion_tokens` caps. If a model rejects an optional feature, the client retries without it.
+- **Evidence is counted, not generated.** Sessions, copy and paste flows, switching and clutter are computed in `tailor/src/agents/digest.ts`. Models only refer to signals by id, so the numbers you see are never invented.
 
-## Safety model
+**Measured** on the labelled sample week: first ideas about 25 s after loading the week, a tested app about 4 minutes after clicking Make, and about $2 in Muse usage for a whole session.
 
-| Concern | What Tailor does |
-| --- | --- |
-| Generated code | Each app runs in a sealed frame at its own address (`<app>.localhost:48100`) with no Tauri access (verified: calls from inside are dropped) and a CSP that blocks the network unless you approved a host. Approved sites are read through Tailor (GET only, those hosts only, no cookies), since most sites don't answer web pages directly. |
-| Live data for apps | Off by default. An idea may ask for **open tabs**, **open windows**, or **AI tool names** (MCP servers, connectors, plugins, skills). You see this before making it, and the app host refuses anything not granted. Tool scanning reads names only, never commands or keys. |
-| AI calls | Go to Tailor's backend with your sign-in token. The Muse key is a server secret. Per-person and global daily caps protect the credits (spend-limit alerts don't stop billing). |
-| Accounts | Supabase Auth, email and password. The refresh token is kept in Windows Credential Manager; the access token stays in memory and never reaches the page. |
-| Observation | Content is never collected. Password managers, banking and sign-in pages are skipped; mail and chat keep only the app or site name; emails, long numbers and tokens are scrubbed. Search words and full addresses are off by default; private windows are ignored. Everything stays local except short summaries sent for ideas. |
-| Your data | The Learning page shows everything recorded, what Tailor noticed, and what you told it. Each item can be deleted. History is kept for 30 days by default. |
+## How it works
 
-## Set up
-
-### 1. Backend (Supabase project `tailor`)
-
-Already created and deployed: the `usage` table with its two counting functions, and the `tailor` edge function (`signup`, `chat`). To finish:
-
-- **Add the Muse key:** Supabase dashboard → Edge Functions → Secrets → `MUSE_API_KEY`. Optional: `TAILOR_DAILY_LIMIT` (default 300 per person), `TAILOR_GLOBAL_DAILY_LIMIT` (default 3000), and `MUSE_MODEL_OBSERVER` / `_DESIGNER` / `_BUILDER` / `_TESTER`.
-- **Password reset:** under Auth → Email Templates → Reset Password, include `{{ .Token }}` so people get a code (the app asks for it). Supabase's built-in email only reaches project members; add custom SMTP before launch.
-- Turn on leaked-password protection (Auth → Passwords).
-
-### 2. Desktop app
-
-Windows 10/11, Node 20+ (for development only; installed Tailor downloads its own build tools), Rust, and the VS C++ Build Tools.
-
-```powershell
-cd tailor
-npm install
-npm run tauri dev        # development
-npx tauri build          # installer: src-tauri/target/release/bundle/nsis/Tailor_0.1.0_x64-setup.exe
+```
+Browser add-on ─┐
+App collector  ─┴─> local history ──> signals counted in code ──> short summary ─┐
+                    (SQLite, stays on                                            │
+                     your computer)                                              v
+                                                  Supabase edge function: holds the Muse key, $ caps
+                                                                                 │
+                                                                                 v
+                                                  Meta Model API: Muse Spark, Muse Wonder
+                                                                                 │
+sealed app at <app>.localhost:48100 <── Vite build on your computer <── app code ┘
 ```
 
-### 3. Browser add-on
+- **Desktop app:** Tauri 2 (Rust) with a React and TypeScript front end. Activity, patterns and ideas live in a local SQLite database, and each app is built in a local workspace.
+- **Backend:** one Supabase edge function, the only place the Muse key exists. Every call is priced from its token counts and the worst case is reserved before the request goes out, against budgets per person per day, per day, and in total, because spend-limit alerts don't stop billing.
+- **Generated apps:** each runs in a sealed frame at its own address with no access to Tailor, and a CSP that blocks the network unless you approved a host. Approved sites are fetched through Tailor (GET only, those hosts only, no cookies). Live data such as open tabs or AI tool names is off unless the idea asked for it and you saw that before making it.
 
-`chrome://extensions` (or `edge://extensions`) → Developer mode → Load unpacked → the `extension/` folder. Tailor's onboarding walks through this and shows when it's connected.
+## Privacy
 
-### 4. Releasing an update
+| | |
+| --- | --- |
+| Off until you say so | Learning stays off until you turn it on, and you choose websites, apps, or both. |
+| Never collected | What you type or copy. Password managers, banking and sign-in pages are skipped. Mail and chat keep only the app or site name. Emails, long numbers and tokens are scrubbed. Private windows are ignored. |
+| What leaves your computer | Only short counted summaries, sent for ideas. History stays local, 30 days by default. |
+| You can see and delete it | The Learning page shows everything recorded, what Tailor noticed, and what you told it. Each item can be deleted. |
+| Sign-in | Supabase Auth. The refresh token is kept in Windows Credential Manager (or the macOS Keychain); the access token stays in memory and never reaches the page. |
 
-Installing a newer version updates Tailor in place: same folder, one entry in Installed apps, and everyone's data, sign-in and apps kept. To release one:
+## Build from source
 
-1. Bump `version` in `tailor/package.json` (the installer reads it from there), e.g. `0.1.0` → `0.1.1`.
-2. Run `npx tauri build` in `tailor/` and share the new `Tailor_<version>_x64-setup.exe`.
+**Desktop app.** You need Node 20+ and Rust. On Windows, also the Visual Studio C++ Build Tools; on Mac, the Xcode command line tools.
 
-Never change `identifier` (`com.tailor.desktop`) or `productName` (`Tailor`) in `tauri.conf.json`: the installer uses them to find the existing install, and the app ID is where everyone's data lives. Changing either installs a second copy instead of updating.
+```sh
+cd tailor
+npm install
+npm run tauri dev                 # run in development
+npx tauri build                   # Windows installer: src-tauri/target/release/bundle/nsis/
+npx tauri build --bundles app     # Mac app (experimental): src-tauri/target/release/bundle/macos/
+```
 
-## 3-minute demo
+By default the app talks to the hosted backend. To use your own, set `TAILOR_SUPABASE_URL` and `TAILOR_SUPABASE_KEY` (the publishable key) when building.
 
-1. **Sign in** (a new account takes seconds) and choose what Tailor may learn from. Turning everything off asks you to confirm.
-2. **Learning → Load the sample** (a labelled made-up week), or use real activity.
-3. **Ideas:** "Too many AI chats and tools to keep track of: up to 13 claude.ai tabs open at once…" → **Agent Hub**. Point out "Can see the tabs open in your browser" and "Can see the names of the tools set up in your AI apps".
-4. **Make this app:** Planning → Building → Trying it out → Ready. Open "Show details" to show the Tester typing and clicking, the problem it found, and the fix.
-5. **Want something different?** Ask for one change.
-6. **Add to My apps** → Open. It's its own app with its own taskbar button and icon, listing your real AI chats and Claude Code tools. Show it in the Start menu.
-7. Close Tailor with X: it stays in the tray. Switch to Midnight in Settings → Appearance and watch the apps follow.
+**Backend** (Supabase CLI):
+
+```sh
+cd backend
+supabase init                             # only if the CLI asks for a config
+supabase link --project-ref <your-project>
+supabase db push                          # usage limits and the dollar budget (supabase/migrations)
+supabase functions deploy tailor
+supabase secrets set MUSE_API_KEY=<your Meta Model API key>
+```
+
+Optional settings: `TAILOR_BUDGET_USD` (default 140), `TAILOR_BUDGET_DAY_USD` (40), `TAILOR_BUDGET_USER_DAY_USD` (5), `TAILOR_DAILY_LIMIT` (300 requests per person), and `MUSE_MODEL_OBSERVER` / `_DESIGNER` / `_BUILDER` / `_TESTER` to swap models.
+
+**Browser add-on:** open `chrome://extensions` (or `edge://extensions`), turn on Developer mode, choose **Load unpacked**, then pick the `extension/` folder.
+
+**Releasing an update:** bump `version` in `tailor/package.json` and build again. Installing the new version updates Tailor in place and keeps everyone's data. Never change `identifier` (`com.tailor.desktop`) or `productName` (`Tailor`) in `tauri.conf.json`, or the installer will put in a second copy instead. The Mac build is made by `.github/workflows/mac.yml` and attached to the release.
+
+## Try it in two minutes
+
+1. Sign up, then choose what Tailor may learn from.
+2. No history yet? **Learning → Load the sample** loads a labelled, made-up week, which you can remove at any time.
+3. **Ideas:** pick one, read why, then **Make this app**. Watch Planning, Building, Trying it out. Open **Show details** to see the Tester at work.
+4. **Want something different?** Ask for one change in plain words.
+5. **Add to My apps**, then **Open**. On Windows, it's in the Start menu too.
 
 ## Project layout
 
 ```
-backend/supabase/functions/tailor/   sign-up and the Muse proxy (models, caps)
-tailor/                              Tauri 2 desktop app
-  src/
-    App.tsx, AppFrame.tsx            the launcher, and the frame around each generated app
-    agents/digest.ts                 counted sessions and signals
-    agents/observer.ts               Observer
-    agents/designer.ts               Designer
-    agents/builder.ts                Builder: write, build, fix, check, test, revise, version
-    agents/tester.ts                 Tester
-    lib/theme.ts, lib/appIcon.ts     themes (with Mica), and each app's Windows icon
-    views/                           Sign in · Onboarding · Ideas · Building · My apps · Learning · Settings
-  src-tauri/src/
-    auth.rs, llm.rs                  accounts and backend calls
-    privacy.rs, collector.rs         privacy floor; app/window/clipboard-change sampler
-    aitools.rs                       names of MCP servers, connectors, plugins, skills
-    ingest.rs                        browser add-on endpoint
-    appserver.rs                     per-app addresses, CSP, approved data feeds, theme
-    app_mode.rs, standalone.rs       apps as their own processes, taskbar identity, Start menu
-    tray.rs                          tray icon and menu
-    workspace.rs                     build tools (private Node if needed), sandboxed writes, builds
-  src-tauri/resources/workspace/     app template, app kit (light and dark), runtime and test harness
-extension/                           Chrome/Edge add-on
+backend/supabase/functions/tailor/   sign-up and the Muse proxy (models, caps, dollar budget)
+backend/supabase/migrations/         usage limits and spend tables
+tailor/src/agents/                   digest (counted signals), observer, designer, builder, tester, goals
+tailor/src/views/                    Ideas, Goals, Building, My apps, Learning, Settings
+tailor/src-tauri/src/                collector, privacy floor, add-on endpoint, app server, workspace builds
+tailor/src-tauri/resources/workspace app template, app kit, runtime and test harness
+extension/                           Chrome and Edge add-on
+website/                             the landing page
+video/                               demo video script and edit
 docs/HACKATHON.md                    rules, dates, judging, model choices
 ```
 
 ## Limitations
 
-- **Not yet run against the live Meta Model API.** The pipeline was tested end to end against a local OpenAI-compatible mock, and the release build was tested through the real backend up to the missing-key response. If Muse rejects an optional setting (structured output, reasoning level, streaming), Tailor retries without it.
-- Windows only (the desktop collector, Mica, taskbar identity and Start menu entries).
-- One local database per computer; signing in as someone else on the same computer shows the same local history and apps.
-- Generated apps can use only React, React DOM and lucide-react, plus the data feeds above.
+- **Mac is experimental.** It learns from websites only (no app or window collector yet), needs Node 20+ already installed to build apps (Windows downloads its own), is unsigned, and doesn't yet have the extra lock that keeps app frames on their own addresses (that one uses WebView2 on Windows).
+- The Windows installer isn't code-signed yet.
+- One local database per computer: signing in as someone else on the same computer shows the same local history and apps.
+- Generated apps can use React, React DOM and lucide-react, plus the approved data feeds.
